@@ -3,11 +3,11 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
+	// "os"
 
 	"github.com/pocketbase/pocketbase"
-	"github.com/pocketbase/pocketbase/apis"
-	"github.com/pocketbase/pocketbase/core"
+	// "github.com/pocketbase/pocketbase/apis"
+	// "github.com/pocketbase/pocketbase/core"
 )
 
 func main() {
