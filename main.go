@@ -22,32 +22,50 @@ func main() {
 	})
 
 	// when a match result comes in, award points for correct predictions
-	app.OnRecordAfterUpdateRequest("draw_slot").Add(func(e *core.RecordUpdateEvent) error {
-		log.Println("RECORD", e.Record)
+	app.OnRecordBeforeUpdateRequest("draw_slot").Add(func(e *core.RecordUpdateEvent) error {
 		name := e.Record.GetString("name")
-		filter := fmt.Sprintf("draw_slot_id=%s", e.Record.Id)
+		round := float64(e.Record.GetInt("round"))
+		filter := fmt.Sprintf(`draw_slot_id="%s"`, e.Record.Id)
 
-		predictions, err := app.Dao().FindRecordsByFilter("view_predictions", filter, "", -1, 0)
+		view_predictions, err := app.Dao().FindRecordsByFilter("view_predictions", filter, "", -1, 0)
 		if err != nil {
-			log.Fatal(err)
+			log.Panicln(err)
 		}
 
-		for _, p := range predictions {
-			record, err := app.Dao().FindRecordById("prediction", p.GetString("id"))
+		if len(view_predictions) == 0 {
+			return nil
+		}
+
+		for _, vp := range view_predictions {
+			record, err := app.Dao().FindRecordById("prediction", vp.GetString("id"))
 			if err != nil {
-				log.Fatal(err)
+				log.Panicln(err)
 			}
 
-			fmt.Println(record.GetString("id"))
+			if strings.Contains(record.GetString("name"), name) {
+				size := float64(vp.GetInt("size"))
+				r16Round := math.Log2(size) - float64(3)
+				
+				points := 0
+				switch round - r16Round {
+				case 1:
+					// Quarterfinal
+					points = 1
+				case 2:
+					// Semifinal
+					points = 2
+				case 3:
+					// Final
+					points = 4
+				case 4:
+					// Winner
+					points = 8
+				}
 
-			if strings.Contains(p.GetString("name"), name) {
-				// Quarterfinals: 1, Semifinals: 2, Final: 4, Winner: 8
-				size := float64(record.GetInt("size"))
-				r16Round := math.Log2(size) - float64(4)
-				thisRound := float64(record.GetInt("round"))
-				points := math.Pow(thisRound-r16Round, 2)
 				record.Set("points", points)
-				fmt.Println(points)
+				if err := app.Dao().SaveRecord(record); err != nil {
+    			return err
+				}
 			}
 		}
 
@@ -55,6 +73,6 @@ func main() {
 	})
 
 	if err := app.Start(); err != nil {
-		log.Fatal(err)
+		log.Panicln(err)
 	}
 }
