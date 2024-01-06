@@ -6,6 +6,7 @@ import (
 	"math"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
@@ -37,16 +38,20 @@ func main() {
 		}
 
 		filter := fmt.Sprintf(`draw_id="%s"&&round="%d"`, drawId, int(r16Round))
-		slots, err := app.Dao().FindRecordsByFilter("draw_slot", filter, "", -1, 0)
+		r16Slots, err := app.Dao().FindRecordsByFilter("draw_slot", filter, "", -1, 0)
 		if err != nil {
 			log.Panicln(err)
 		}
 
-		if len(slots) != 16 {
+		if len(r16Slots) != 16 {
 			return nil
 		}
 
-		
+		predictionClose := time.Now().Add(12 * time.Hour)
+		draw.Set("prediction_close", predictionClose)
+		if err := app.Dao().SaveRecord(draw); err != nil {
+			return err
+		}
 
 		return nil
 	})
@@ -75,7 +80,7 @@ func main() {
 			if strings.Contains(record.GetString("name"), name) {
 				size := float64(vp.GetInt("size"))
 				r16Round := math.Log2(size) - float64(3)
-				
+
 				points := 0
 				switch round - r16Round {
 				case 1:
@@ -94,7 +99,7 @@ func main() {
 
 				record.Set("points", points)
 				if err := app.Dao().SaveRecord(record); err != nil {
-    			return err
+					return err
 				}
 			}
 		}
