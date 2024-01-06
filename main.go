@@ -21,8 +21,38 @@ func main() {
 		return nil
 	})
 
+	// when the round of 16 is full, set prediction close and notify users
+	app.OnRecordAfterUpdateRequest("draw_slot").Add(func(e *core.RecordUpdateEvent) error {
+		drawId := e.Record.GetString("draw_id")
+		draw, err := app.Dao().FindRecordById("draw", drawId)
+		if err != nil {
+			log.Panicln(err)
+		}
+
+		size := float64(draw.GetInt("size"))
+		r16Round := math.Log2(size) - float64(3)
+
+		if float64(e.Record.GetInt("round")) != r16Round {
+			return nil
+		}
+
+		filter := fmt.Sprintf(`draw_id="%s"&&round="%d"`, drawId, int(r16Round))
+		slots, err := app.Dao().FindRecordsByFilter("draw_slot", filter, "", -1, 0)
+		if err != nil {
+			log.Panicln(err)
+		}
+
+		if len(slots) != 16 {
+			return nil
+		}
+
+		
+
+		return nil
+	})
+
 	// when a match result comes in, award points for correct predictions
-	app.OnRecordBeforeUpdateRequest("draw_slot").Add(func(e *core.RecordUpdateEvent) error {
+	app.OnRecordAfterUpdateRequest("draw_slot").Add(func(e *core.RecordUpdateEvent) error {
 		name := e.Record.GetString("name")
 		round := float64(e.Record.GetInt("round"))
 		filter := fmt.Sprintf(`draw_slot_id="%s"`, e.Record.Id)
