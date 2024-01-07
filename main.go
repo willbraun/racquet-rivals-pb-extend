@@ -4,13 +4,16 @@ import (
 	"fmt"
 	"log"
 	"math"
+	"net/mail"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
+	"github.com/pocketbase/pocketbase/tools/mailer"
 )
 
 func main() {
@@ -59,6 +62,27 @@ func main() {
 		draw.Set("prediction_close", predictionClose)
 		if err := app.Dao().SaveRecord(draw); err != nil {
 			return err
+		}
+
+		name := draw.GetString("name")
+		event := draw.GetString("event")
+		year := draw.GetInt("year")
+		title := fmt.Sprintf("%s %s %d", name, event, year)
+		slug := strings.ToLower(strings.ReplaceAll(strings.Join([]string{name, event, strconv.Itoa(year)}, "-"), " ", "-")) + "-" + drawId
+
+		users, err := app.Dao().FindRecordsByFilter("user", `email!=""`, "", -1, 0)
+		for _, user := range users {
+			message := &mailer.Message{
+				From: mail.Address{
+					Address: app.Settings().Meta.SenderAddress,
+					Name:    app.Settings().Meta.SenderName,
+				},
+				To:      []mail.Address{{Address: user.GetString("email")}},
+				Subject: "Time to make your picks!",
+				HTML:    fmt.Sprintf(`The Round of 16 is ready to go for: <b>%s</b>. You have 12 hours to make your picks, good luck!<br><br><a href="https://racquetrivals.com/draw/%s">Racquet Rivals - %s</a>`, title, slug, title),
+			}
+
+			app.NewMailClient().Send(message)
 		}
 
 		return nil
