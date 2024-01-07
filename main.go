@@ -33,6 +33,8 @@ func main() {
 		size := float64(draw.GetInt("size"))
 		r16Round := math.Log2(size) - float64(3)
 
+		log.Println(e.Record)
+
 		if float64(e.Record.GetInt("round")) != r16Round {
 			return nil
 		}
@@ -77,11 +79,12 @@ func main() {
 				log.Panicln(err)
 			}
 
-			if strings.Contains(record.GetString("name"), name) {
+			points := 0
+
+			if strings.Contains(record.GetString("name"), name) && name != "" {
 				size := float64(vp.GetInt("size"))
 				r16Round := math.Log2(size) - float64(3)
 
-				points := 0
 				switch round - r16Round {
 				case 1:
 					// Quarterfinal
@@ -96,7 +99,9 @@ func main() {
 					// Winner
 					points = 8
 				}
+			}
 
+			if points != record.GetInt("points") {
 				record.Set("points", points)
 				if err := app.Dao().SaveRecord(record); err != nil {
 					return err
