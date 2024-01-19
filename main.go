@@ -48,13 +48,13 @@ func main() {
 			return nil
 		}
 
-		filter := fmt.Sprintf(`draw_id="%s"&&round="%d"`, drawId, int(r16Round))
-		r16Slots, err := app.Dao().FindRecordsByFilter("draw_slot", filter, "", -1, 0)
+		filter := fmt.Sprintf(`draw_id="%s"&&round="%d"&&name!=""`, drawId, int(r16Round))
+		r16FilledSlots, err := app.Dao().FindRecordsByFilter("draw_slot", filter, "", -1, 0)
 		if err != nil {
 			log.Panicln(err)
 		}
 
-		if len(r16Slots) != 16 {
+		if len(r16FilledSlots) != 16 {
 			return nil
 		}
 
@@ -65,7 +65,7 @@ func main() {
 		}
 
 		name := draw.GetString("name")
-		event := draw.GetString("event")
+		event := strings.ReplaceAll(draw.GetString("event"), "'", "")
 		year := draw.GetInt("year")
 		title := fmt.Sprintf("%s %s %d", name, event, year)
 		slug := strings.ToLower(strings.ReplaceAll(strings.Join([]string{name, event, strconv.Itoa(year)}, "-"), " ", "-")) + "-" + drawId
