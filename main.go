@@ -16,9 +16,7 @@ import (
 	"github.com/pocketbase/pocketbase/tools/mailer"
 )
 
-func main() {
-	app := pocketbase.New()
-
+func bindAppHooks(app core.App) {
 	// serves static files from the provided public dir (if exists)
 	app.OnBeforeServe().Add(func(e *core.ServeEvent) error {
 		e.Router.GET("/*", apis.StaticDirectoryHandler(os.DirFS("./pb_public"), false))
@@ -27,6 +25,7 @@ func main() {
 
 	// when the round of 16 is full, set prediction close and notify users
 	app.OnRecordAfterUpdateRequest("draw_slot").Add(func(e *core.RecordUpdateEvent) error {
+		// Set prediction close
 		if e.Record.GetString("name") == "" {
 			return nil
 		}
@@ -64,6 +63,7 @@ func main() {
 			return err
 		}
 
+		// Send email to notify users
 		name := draw.GetString("name")
 		event := strings.ReplaceAll(draw.GetString("event"), "'", "")
 		year := draw.GetInt("year")
@@ -71,6 +71,10 @@ func main() {
 		slug := strings.ToLower(strings.ReplaceAll(strings.Join([]string{name, event, strconv.Itoa(year)}, "-"), " ", "-")) + "-" + drawId
 
 		users, err := app.Dao().FindRecordsByFilter("user", `email!=""`, "", -1, 0)
+		if err != nil {
+			return err
+		}
+
 		for _, user := range users {
 			message := &mailer.Message{
 				From: mail.Address{
@@ -143,6 +147,12 @@ func main() {
 
 		return nil
 	})
+}
+
+func main() {
+	app := pocketbase.New()
+
+	bindAppHooks(app)
 
 	if err := app.Start(); err != nil {
 		log.Panicln(err)
