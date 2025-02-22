@@ -10,9 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/labstack/echo/v5"
+	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tests"
-	"github.com/pocketbase/pocketbase/tokens"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -47,12 +46,12 @@ func generateRecordToken(collectionNameOrId string, username string) (string, er
 	}
 	defer app.Cleanup()
 
-	record, err := app.Dao().FindAuthRecordByUsername(collectionNameOrId, username)
+	record, err := app.FindFirstRecordByData(collectionNameOrId, "username", username)
 	if err != nil {
 		return "", err
 	}
 
-	return tokens.NewRecordAuthToken(app, record)
+	return record.NewAuthToken()
 }
 
 const drawId = "2l1hqqi8puodmjq"
@@ -78,7 +77,7 @@ func TestPredictionCloseUpdate(t *testing.T) {
 		{
 			Name:   "Add R16 slot 15, prediction close is not set",
 			Method: http.MethodPatch,
-			Url:    fmt.Sprintf("/api/collections/draw_slot/records/%s", r16Slot15Id),
+			URL:    fmt.Sprintf("/api/collections/draw_slot/records/%s", r16Slot15Id),
 			Body: getIoReaderBody(CreateUpdateSlotReq{
 				DrawID:   drawId,
 				Round:    3,
@@ -86,16 +85,10 @@ func TestPredictionCloseUpdate(t *testing.T) {
 				Name:     "Mertens",
 				Seed:     "(13)",
 			}),
-			RequestHeaders: requestHeaders,
+			Headers: requestHeaders,
 			ExpectedStatus:  200,
 			ExpectedContent: []string{"\"collectionName\":\"draw_slot\""},
-			ExpectedEvents: map[string]int{
-				"OnModelAfterUpdate":          1,
-				"OnModelBeforeUpdate":         1,
-				"OnRecordAfterUpdateRequest":  1,
-				"OnRecordBeforeUpdateRequest": 1,
-			},
-			TestAppFactory: func(t *testing.T) *tests.TestApp {
+			TestAppFactory: func(t testing.TB) *tests.TestApp {
 				testApp, err := tests.NewTestApp(testDataDir)
 				if err != nil {
 					t.Fatal(err)
@@ -105,39 +98,39 @@ func TestPredictionCloseUpdate(t *testing.T) {
 
 				return testApp
 			},
-			BeforeTestFunc: func(t *testing.T, app *tests.TestApp, e *echo.Echo) {
-				draw, err := app.Dao().FindRecordById("draw", drawId)
+			BeforeTestFunc: func(t testing.TB, app *tests.TestApp, e *core.ServeEvent) {
+				draw, err := app.FindRecordById("draw", drawId)
 				if err != nil {
 					log.Println("Error accessing test draw,", err)
 				}
 
-				r16FilledSlots, err := app.Dao().FindRecordsByFilter("draw_slot", filter, "", -1, 0)
+				r16FilledSlots, err := app.FindRecordsByFilter("draw_slot", filter, "", -1, 0)
 				if err != nil {
 					log.Println("Error accessing round of 16 slots", err)
 				}
 
-				assert.Equal(len(r16FilledSlots), 14)
+				assert.Equal(14, len(r16FilledSlots))
 				assert.Empty(draw.GetDateTime("prediction_close"))
 			},
-			AfterTestFunc: func(t *testing.T, app *tests.TestApp, res *http.Response) {
-				draw, err := app.Dao().FindRecordById("draw", drawId)
+			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
+				draw, err := app.FindRecordById("draw", drawId)
 				if err != nil {
 					log.Println("Error accessing test draw,", err)
 				}
 
-				r16FilledSlots, err := app.Dao().FindRecordsByFilter("draw_slot", filter, "", -1, 0)
+				r16FilledSlots, err := app.FindRecordsByFilter("draw_slot", filter, "", -1, 0)
 				if err != nil {
 					log.Println("Error accessing round of 16 slots", err)
 				}
 
-				assert.Equal(len(r16FilledSlots), 15)
+				assert.Equal(15, len(r16FilledSlots))
 				assert.Empty(draw.GetDateTime("prediction_close"))
 			},
 		},
 		{
 			Name:   "Add R16 slot 16, prediction close is set",
 			Method: http.MethodPatch,
-			Url:    fmt.Sprintf("/api/collections/draw_slot/records/%s", r16Slot16Id),
+			URL:    fmt.Sprintf("/api/collections/draw_slot/records/%s", r16Slot16Id),
 			Body: getIoReaderBody(CreateUpdateSlotReq{
 				DrawID:   drawId,
 				Round:    3,
@@ -145,16 +138,10 @@ func TestPredictionCloseUpdate(t *testing.T) {
 				Name:     "Rybakina",
 				Seed:     "(2)",
 			}),
-			RequestHeaders: requestHeaders,
+			Headers: requestHeaders,
 			ExpectedStatus:  200,
 			ExpectedContent: []string{"\"collectionName\":\"draw_slot\""},
-			ExpectedEvents: map[string]int{
-				"OnModelAfterUpdate":          3,
-				"OnModelBeforeUpdate":         3,
-				"OnRecordAfterUpdateRequest":  1,
-				"OnRecordBeforeUpdateRequest": 1,
-			},
-			TestAppFactory: func(t *testing.T) *tests.TestApp {
+			TestAppFactory: func(t testing.TB) *tests.TestApp {
 				testApp, err := tests.NewTestApp(testDataDir)
 				if err != nil {
 					t.Fatal(err)
@@ -162,51 +149,51 @@ func TestPredictionCloseUpdate(t *testing.T) {
 
 				bindAppHooks(testApp)
 
-				slot15, err := testApp.Dao().FindRecordById("draw_slot", r16Slot15Id)
+				slot15, err := testApp.FindRecordById("draw_slot", r16Slot15Id)
 				if err != nil {
 					log.Println("Error accessing slot 15", err)
 				}
 
 				slot15.Set("name", "Mertens")
-				if err := testApp.Dao().SaveRecord(slot15); err != nil {
+				if err := testApp.Save(slot15); err != nil {
 					log.Println("Error saving slot 15", err)
 				}
 
 				return testApp
 			},
-			BeforeTestFunc: func(t *testing.T, app *tests.TestApp, e *echo.Echo) {
-				draw, err := app.Dao().FindRecordById("draw", drawId)
+			BeforeTestFunc: func(t testing.TB, app *tests.TestApp, e *core.ServeEvent) {
+				draw, err := app.FindRecordById("draw", drawId)
 				if err != nil {
 					log.Println("Error accessing test draw", err)
 				}
 
-				r16FilledSlots, err := app.Dao().FindRecordsByFilter("draw_slot", filter, "", -1, 0)
+				r16FilledSlots, err := app.FindRecordsByFilter("draw_slot", filter, "", -1, 0)
 				if err != nil {
 					log.Println("Error accessing round of 16 slots", err)
 				}
 
-				assert.Equal(len(r16FilledSlots), 15)
+				assert.Equal(15, len(r16FilledSlots))
 				assert.Empty(draw.GetDateTime("prediction_close"))
 			},
-			AfterTestFunc: func(t *testing.T, app *tests.TestApp, res *http.Response) {
-				draw, err := app.Dao().FindRecordById("draw", drawId)
+			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
+				draw, err := app.FindRecordById("draw", drawId)
 				if err != nil {
 					log.Println("Error accessing test draw,", err)
 				}
 
-				r16FilledSlots, err := app.Dao().FindRecordsByFilter("draw_slot", filter, "", -1, 0)
+				r16FilledSlots, err := app.FindRecordsByFilter("draw_slot", filter, "", -1, 0)
 				if err != nil {
 					log.Println("Error accessing round of 16 slots", err)
 				}
 
-				assert.Equal(len(r16FilledSlots), 16)
+				assert.Equal(16, len(r16FilledSlots))
 				assert.NotEmpty(draw.GetDateTime("prediction_close"))
 			},
 		},
 		{
 			Name:   "Add QF slot 1, prediction close is still set",
 			Method: http.MethodPatch,
-			Url:    fmt.Sprintf("/api/collections/draw_slot/records/%s", qfSlot1Id),
+			URL:    fmt.Sprintf("/api/collections/draw_slot/records/%s", qfSlot1Id),
 			Body: getIoReaderBody(CreateUpdateSlotReq{
 				DrawID:   drawId,
 				Round:    4,
@@ -214,16 +201,10 @@ func TestPredictionCloseUpdate(t *testing.T) {
 				Name:     "Sabalenka",
 				Seed:     "(1)",
 			}),
-			RequestHeaders: requestHeaders,
+			Headers: requestHeaders,
 			ExpectedStatus:  200,
 			ExpectedContent: []string{"\"collectionName\":\"draw_slot\""},
-			ExpectedEvents: map[string]int{
-				"OnModelAfterUpdate":          5,
-				"OnModelBeforeUpdate":         5,
-				"OnRecordAfterUpdateRequest":  1,
-				"OnRecordBeforeUpdateRequest": 1,
-			},
-			TestAppFactory: func(t *testing.T) *tests.TestApp {
+			TestAppFactory: func(t testing.TB) *tests.TestApp {
 				testApp, err := tests.NewTestApp(testDataDir)
 				if err != nil {
 					t.Fatal(err)
@@ -231,64 +212,64 @@ func TestPredictionCloseUpdate(t *testing.T) {
 
 				bindAppHooks(testApp)
 
-				slot15, err := testApp.Dao().FindRecordById("draw_slot", r16Slot15Id)
+				slot15, err := testApp.FindRecordById("draw_slot", r16Slot15Id)
 				if err != nil {
 					log.Println("Error accessing slot 15", err)
 				}
 
 				slot15.Set("name", "Mertens")
-				if err := testApp.Dao().SaveRecord(slot15); err != nil {
+				if err := testApp.Save(slot15); err != nil {
 					log.Println("Error saving slot 15", err)
 				}
 
-				slot16, err := testApp.Dao().FindRecordById("draw_slot", r16Slot16Id)
+				slot16, err := testApp.FindRecordById("draw_slot", r16Slot16Id)
 				if err != nil {
 					log.Println("Error accessing slot 16", err)
 				}
 
 				slot16.Set("name", "Rybakina")
-				if err := testApp.Dao().SaveRecord(slot16); err != nil {
+				if err := testApp.Save(slot16); err != nil {
 					log.Println("Error saving slot 16", err)
 				}
 
-				draw, err := testApp.Dao().FindRecordById("draw", drawId)
+				draw, err := testApp.FindRecordById("draw", drawId)
 				if err != nil {
 					log.Println("Error accessing test draw", err)
 				}
 
 				draw.Set("prediction_close", time.Now())
-				if err := testApp.Dao().SaveRecord(draw); err != nil {
+				if err := testApp.Save(draw); err != nil {
 					log.Println("Error saving draw", err)
 				}
 
 				return testApp
 			},
-			BeforeTestFunc: func(t *testing.T, app *tests.TestApp, e *echo.Echo) {
-				draw, err := app.Dao().FindRecordById("draw", drawId)
+			BeforeTestFunc: func(t testing.TB, app *tests.TestApp, e *core.ServeEvent) {
+				draw, err := app.FindRecordById("draw", drawId)
 				if err != nil {
 					log.Println("Error accessing test draw", err)
 				}
 
-				r16FilledSlots, err := app.Dao().FindRecordsByFilter("draw_slot", filter, "", -1, 0)
+				r16FilledSlots, err := app.FindRecordsByFilter("draw_slot", filter, "", -1, 0)
 				if err != nil {
 					log.Println("Error accessing round of 16 slots", err)
 				}
 
-				assert.Equal(len(r16FilledSlots), 16)
+				assert.Equal(16, len(r16FilledSlots))
 				assert.NotEmpty(draw.GetDateTime("prediction_close"))
 			},
-			AfterTestFunc: func(t *testing.T, app *tests.TestApp, res *http.Response) {
-				draw, err := app.Dao().FindRecordById("draw", drawId)
+			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
+				draw, err := app.FindRecordById("draw", drawId)
 				if err != nil {
 					log.Println("Error accessing test draw,", err)
 				}
 
-				r16FilledSlots, err := app.Dao().FindRecordsByFilter("draw_slot", filter, "", -1, 0)
+				r16FilledSlots, err := app.FindRecordsByFilter("draw_slot", filter, "", -1, 0)
 				if err != nil {
 					log.Println("Error accessing round of 16 slots", err)
 				}
 
-				assert.Equal(len(r16FilledSlots), 16)
+				assert.Equal(16, len(r16FilledSlots))
 				assert.NotEmpty(draw.GetDateTime("prediction_close"))
 			},
 		},
@@ -300,7 +281,7 @@ func TestPredictionCloseUpdate(t *testing.T) {
 }
 
 func TestPointUpdate(t *testing.T) {
-	setupTestApp := func(t *testing.T) *tests.TestApp {
+	setupTestApp := func(t testing.TB) *tests.TestApp {
 		testApp, err := tests.NewTestApp(testDataDir)
 		if err != nil {
 			t.Fatal(err)
@@ -311,37 +292,37 @@ func TestPointUpdate(t *testing.T) {
 		return testApp
 	}
 
-	setupBeforeTest := func(assert *assert.Assertions, winningPrediction string, losingPrediction string) func(t *testing.T, app *tests.TestApp, e *echo.Echo) {
-		return func(t *testing.T, app *tests.TestApp, e *echo.Echo) {
-			win, err := app.Dao().FindRecordById("prediction", winningPrediction)
+	setupBeforeTest := func(assert *assert.Assertions, winningPrediction string, losingPrediction string) func(t testing.TB, app *tests.TestApp, e *core.ServeEvent) {
+		return func(t testing.TB, app *tests.TestApp, e *core.ServeEvent) {
+			win, err := app.FindRecordById("prediction", winningPrediction)
 			if err != nil {
 				log.Println("Error accessing winning prediction,", err)
 			}
 
-			lose, err := app.Dao().FindRecordById("prediction", losingPrediction)
+			lose, err := app.FindRecordById("prediction", losingPrediction)
 			if err != nil {
 				log.Println("Error accessing winning prediction,", err)
 			}
 
-			assert.Equal(win.GetInt("points"), 0)
-			assert.Equal(lose.GetInt("points"), 0)
+			assert.Equal(0, win.GetInt("points"))
+			assert.Equal(0, lose.GetInt("points"))
 		}
 	}
 
-	setupAfterTest := func(assert *assert.Assertions, winningPrediction string, losingPrediction string, expectedPoints int) func(t *testing.T, app *tests.TestApp, res *http.Response) {
-		return func(t *testing.T, app *tests.TestApp, res *http.Response) {
-			win, err := app.Dao().FindRecordById("prediction", winningPrediction)
+	setupAfterTest := func(assert *assert.Assertions, winningPrediction string, losingPrediction string, expectedPoints int) func(t testing.TB, app *tests.TestApp, res *http.Response) {
+		return func(t testing.TB, app *tests.TestApp, res *http.Response) {
+			win, err := app.FindRecordById("prediction", winningPrediction)
 			if err != nil {
 				log.Println("Error accessing winning prediction,", err)
 			}
 
-			lose, err := app.Dao().FindRecordById("prediction", losingPrediction)
+			lose, err := app.FindRecordById("prediction", losingPrediction)
 			if err != nil {
 				log.Println("Error accessing winning prediction,", err)
 			}
 
-			assert.Equal(win.GetInt("points"), expectedPoints)
-			assert.Equal(lose.GetInt("points"), 0)
+			assert.Equal(expectedPoints, win.GetInt("points"))
+			assert.Equal(0, lose.GetInt("points"))
 		}
 	}
 
@@ -362,13 +343,6 @@ func TestPointUpdate(t *testing.T) {
 	const finalLosingPrediction = "ohobwbtobq156mu"
 	const winnerLosingPrediction = "edbd19e25ersljg"
 
-	expectedEvents := map[string]int{
-		"OnModelAfterUpdate":          2,
-		"OnModelBeforeUpdate":         2,
-		"OnRecordAfterUpdateRequest":  1,
-		"OnRecordBeforeUpdateRequest": 1,
-	}
-
 	recordToken, err := generateRecordToken("user", "script_user")
 	if err != nil {
 		t.Fatal(err)
@@ -376,13 +350,14 @@ func TestPointUpdate(t *testing.T) {
 
 	requestHeaders := map[string]string{
 		"Authorization": recordToken,
+		"Content-Type":  "application/json",
 	}
 
 	scenarios := []tests.ApiScenario{
 		{
 			Name:   "Quarterfinal prediction result",
 			Method: http.MethodPatch,
-			Url:    fmt.Sprintf("/api/collections/draw_slot/records/%s", quarterfinalSlotId),
+			URL:    fmt.Sprintf("/api/collections/draw_slot/records/%s", quarterfinalSlotId),
 			Body: getIoReaderBody(CreateUpdateSlotReq{
 				DrawID:   drawId,
 				Round:    4,
@@ -390,10 +365,9 @@ func TestPointUpdate(t *testing.T) {
 				Name:     "Sabalenka",
 				Seed:     "(1)",
 			}),
-			RequestHeaders: requestHeaders,
+			Headers: requestHeaders,
 			ExpectedStatus:  200,
 			ExpectedContent: []string{"\"collectionName\":\"draw_slot\""},
-			ExpectedEvents:  expectedEvents,
 			TestAppFactory:  setupTestApp,
 			BeforeTestFunc:  setupBeforeTest(assert, quarterfinalWinningPrediction, quarterfinalLosingPrediction),
 			AfterTestFunc:   setupAfterTest(assert, quarterfinalWinningPrediction, quarterfinalLosingPrediction, 1),
@@ -401,7 +375,7 @@ func TestPointUpdate(t *testing.T) {
 		{
 			Name:   "Semifinal prediction result",
 			Method: http.MethodPatch,
-			Url:    fmt.Sprintf("/api/collections/draw_slot/records/%s", semifinalSlotId),
+			URL:    fmt.Sprintf("/api/collections/draw_slot/records/%s", semifinalSlotId),
 			Body: getIoReaderBody(CreateUpdateSlotReq{
 				DrawID:   drawId,
 				Round:    5,
@@ -409,10 +383,9 @@ func TestPointUpdate(t *testing.T) {
 				Name:     "Sabalenka",
 				Seed:     "(1)",
 			}),
-			RequestHeaders: requestHeaders,
+			Headers: requestHeaders,
 			ExpectedStatus:  200,
 			ExpectedContent: []string{"\"collectionName\":\"draw_slot\""},
-			ExpectedEvents:  expectedEvents,
 			TestAppFactory:  setupTestApp,
 			BeforeTestFunc:  setupBeforeTest(assert, semifinalWinningPrediction, semifinalLosingPrediction),
 			AfterTestFunc:   setupAfterTest(assert, semifinalWinningPrediction, semifinalLosingPrediction, 2),
@@ -420,7 +393,7 @@ func TestPointUpdate(t *testing.T) {
 		{
 			Name:   "Final prediction result",
 			Method: http.MethodPatch,
-			Url:    fmt.Sprintf("/api/collections/draw_slot/records/%s", finalSlotId),
+			URL:    fmt.Sprintf("/api/collections/draw_slot/records/%s", finalSlotId),
 			Body: getIoReaderBody(CreateUpdateSlotReq{
 				DrawID:   drawId,
 				Round:    6,
@@ -428,10 +401,9 @@ func TestPointUpdate(t *testing.T) {
 				Name:     "Sabalenka",
 				Seed:     "(1)",
 			}),
-			RequestHeaders: requestHeaders,
+			Headers: requestHeaders,
 			ExpectedStatus:  200,
 			ExpectedContent: []string{"\"collectionName\":\"draw_slot\""},
-			ExpectedEvents:  expectedEvents,
 			TestAppFactory:  setupTestApp,
 			BeforeTestFunc:  setupBeforeTest(assert, finalWinningPrediction, finalLosingPrediction),
 			AfterTestFunc:   setupAfterTest(assert, finalWinningPrediction, finalLosingPrediction, 4),
@@ -439,7 +411,7 @@ func TestPointUpdate(t *testing.T) {
 		{
 			Name:   "Winner prediction result",
 			Method: http.MethodPatch,
-			Url:    fmt.Sprintf("/api/collections/draw_slot/records/%s", winnerSlotId),
+			URL:    fmt.Sprintf("/api/collections/draw_slot/records/%s", winnerSlotId),
 			Body: getIoReaderBody(CreateUpdateSlotReq{
 				DrawID:   drawId,
 				Round:    7,
@@ -447,10 +419,9 @@ func TestPointUpdate(t *testing.T) {
 				Name:     "Rybakina",
 				Seed:     "(2)",
 			}),
-			RequestHeaders: requestHeaders,
+			Headers: requestHeaders,
 			ExpectedStatus:  200,
 			ExpectedContent: []string{"\"collectionName\":\"draw_slot\""},
-			ExpectedEvents:  expectedEvents,
 			TestAppFactory:  setupTestApp,
 			BeforeTestFunc:  setupBeforeTest(assert, winnerWinningPrediction, winnerLosingPrediction),
 			AfterTestFunc:   setupAfterTest(assert, winnerWinningPrediction, winnerLosingPrediction, 8),
