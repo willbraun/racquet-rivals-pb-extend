@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/pocketbase/pocketbase"
+	"github.com/pocketbase/pocketbase/apis"
 	"github.com/pocketbase/pocketbase/core"
 	"github.com/pocketbase/pocketbase/tools/mailer"
 )
@@ -19,15 +20,8 @@ func bindAppHooks(app core.App) {
 	// Check if a given user has access to participate in a given draw
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		se.Router.GET("/access/{user_id}/{draw_id}", func(e *core.RequestEvent) error {
-			username, _, ok := e.Request.BasicAuth()
-			if !ok {
-				return e.JSON(http.StatusUnauthorized, map[string]interface{}{
-					"error": "Unauthorized",
-				})
-			}
-
-			userId := e.Request.PathValue("user_id")
-			drawId := e.Request.PathValue("draw_id")
+			userId := strings.Trim(e.Request.PathValue("user_id"), " ")
+			drawId := strings.Trim(e.Request.PathValue("draw_id"), " ")
 
 			if userId == "" {
 				return e.JSON(http.StatusBadRequest, map[string]interface{}{
@@ -50,7 +44,7 @@ func bindAppHooks(app core.App) {
 
 			requestedUsername := user.GetString("username")
 
-			if requestedUsername != username {
+			if requestedUsername != e.Auth.GetString("username") {
 				return e.JSON(http.StatusForbidden, map[string]interface{}{
 					"error": fmt.Sprintf("You don't have permission to access %s's data", requestedUsername),
 				})
@@ -103,7 +97,7 @@ func bindAppHooks(app core.App) {
 			return e.JSON(http.StatusOK, map[string]interface{}{
 				"hasAccess": false,
 			})
-		})
+		}).Bind(apis.RequireAuth())
 
 		return se.Next()
 	})

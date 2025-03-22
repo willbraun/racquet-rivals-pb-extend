@@ -19,97 +19,129 @@ func TestAccessEndpoint(t *testing.T) {
 		return testApp
 	}
 
+	createAuthHeader := func(username string) map[string]string {
+		recordToken, err := generateRecordToken("user", username)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		requestHeaders := map[string]string{
+			"Authorization": recordToken,
+		}
+
+		return requestHeaders
+	}
+
 	const testDrawId = "2l1hqqi8puodmjq"
+	const grandfatheredUserId = "rj8l4hni6tl4bas"
+	const subscribedUserId = "r8xmngx0sgau633"
+	const singleDrawUserId = "e425j00gwm5pi1h"
+	const noAccessUserId = "2y5ysc47g9l6ebq"
 
-	t.Run("Access granted when user is grandfathered", func(t *testing.T) {
-		app, err := tests.NewTestApp(testDataDir)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer app.Cleanup()
+	t.Run("Throws expected exceptions", func(t *testing.T) {
+		scenarios := []tests.ApiScenario{
+				{
+					Name:            "Unauthorized",
+					Method:          http.MethodGet,
+					URL:             "/access/" + grandfatheredUserId + "/" + testDrawId,
+					ExpectedStatus:  401,
+					ExpectedContent: []string{`{"data":{},"message":"The request requires valid record authorization token.","status":401}`},
+					TestAppFactory:  setupTestApp,
+				},
+				{
+					Name:            "Permission denied",
+					Method:          http.MethodGet,
+					Headers:         createAuthHeader("grandfathered_user"),
+					URL:             "/access/" + subscribedUserId + "/" + testDrawId,
+					ExpectedStatus:  403,
+					ExpectedContent: []string{`"error":"You don't have permission to access subscribed_user's data"`},
+					TestAppFactory:  setupTestApp,
+				},
+				{
+					Name:            "User not found",
+					Method:          http.MethodGet,
+					Headers:         createAuthHeader("grandfathered_user"),
+					URL:             "/access/invalid_user_id/" + testDrawId,
+					ExpectedStatus:  404,
+					ExpectedContent: []string{`"error":"User not found"`},
+					TestAppFactory:  setupTestApp,
+				},
+				{
+					Name:            "Draw not found",
+					Method:          http.MethodGet,
+					Headers:         createAuthHeader("grandfathered_user"),
+					URL:             "/access/" + grandfatheredUserId + "/invalid_draw_id",
+					ExpectedStatus:  404,
+					ExpectedContent: []string{`"error":"Draw not found"`},
+					TestAppFactory:  setupTestApp,
+				},
+				{
+					Name:            "Missing user_id",
+					Method:          http.MethodGet,
+					Headers:         createAuthHeader("grandfathered_user"),
+					URL:             "/access/%20/" + testDrawId,
+					ExpectedStatus:  400,
+					ExpectedContent: []string{`"error":"Must provide user_id"`},
+					TestAppFactory:  setupTestApp,
+				},
+				{
+					Name:            "Missing draw_id",
+					Method:          http.MethodGet,
+					Headers:         createAuthHeader("grandfathered_user"),
+					URL:             "/access/" + grandfatheredUserId + "/%20",
+					ExpectedStatus:  400,
+					ExpectedContent: []string{`"error":"Must provide draw_id"`},
+					TestAppFactory:  setupTestApp,
+				},
+			}
 
-		bindAppHooks(app)
-
-		grandfatheredUserId := "r8xmngx0sgau633"
-
-		scenario := tests.ApiScenario{
-			Name:            "Grandfathered user access",
-			Method:          http.MethodGet,
-			URL:             "/access/" + grandfatheredUserId + "/" + testDrawId,
-			ExpectedStatus:  200,
-			ExpectedContent: []string{`"hasAccess":true`},
-			TestAppFactory:  setupTestApp,
-		}
-
-		scenario.Test(t)
+			for _, scenario := range scenarios {
+				scenario.Test(t)
+			}
 	})
 
-	t.Run("Access granted when user has active subscription", func(t *testing.T) {
-		app, err := tests.NewTestApp(testDataDir)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer app.Cleanup()
+	t.Run("Access is correct", func(t *testing.T) {
+		scenarios := []tests.ApiScenario{
+				{
+					Name:            "Grandfathered user access",
+					Method:          http.MethodGet,
+					Headers:         createAuthHeader("grandfathered_user"),
+					URL:             "/access/" + grandfatheredUserId + "/" + testDrawId,
+					ExpectedStatus:  200,
+					ExpectedContent: []string{`"hasAccess":true`},
+					TestAppFactory:  setupTestApp,
+				},
+				{
+					Name:            "Subscribed user access",
+					Method:          http.MethodGet,
+					Headers:         createAuthHeader("subscribed_user"),
+					URL:             "/access/" + subscribedUserId + "/" + testDrawId,
+					ExpectedStatus:  200,
+					ExpectedContent: []string{`"hasAccess":true`},
+					TestAppFactory:  setupTestApp,
+				},
+				{
+					Name:            "User with draw entry access",
+					Method:          http.MethodGet,
+					Headers:         createAuthHeader("single_draw_user"),
+					URL:             "/access/" + singleDrawUserId + "/" + testDrawId,
+					ExpectedStatus:  200,
+					ExpectedContent: []string{`"hasAccess":true`},
+					TestAppFactory:  setupTestApp,
+				},
+				{
+					Name:            "User with no access",
+					Method:          http.MethodGet,
+					Headers:         createAuthHeader("no_access_user"),
+					URL:             "/access/" + noAccessUserId + "/" + testDrawId,
+					ExpectedStatus:  200,
+					ExpectedContent: []string{`"hasAccess":false`},
+					TestAppFactory:  setupTestApp,
+				},
+			}
 
-		bindAppHooks(app)
-
-		subscribedUserId := "r8xmngx0sgau633"
-
-		scenario := tests.ApiScenario{
-			Name:            "Subscription user access",
-			Method:          http.MethodGet,
-			URL:             "/access/" + subscribedUserId + "/" + testDrawId,
-			ExpectedStatus:  200,
-			ExpectedContent: []string{`"hasAccess":true`},
-			TestAppFactory:  setupTestApp,
-		}
-
-		scenario.Test(t)
-	})
-
-	t.Run("Access granted when user has draw entry", func(t *testing.T) {
-		app, err := tests.NewTestApp(testDataDir)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer app.Cleanup()
-
-		bindAppHooks(app)
-
-		userWithDrawEntryId := "e425j00gwm5pi1h"
-
-		scenario := tests.ApiScenario{
-			Name:            "Draw entry user access",
-			Method:          http.MethodGet,
-			URL:             "/access/" + userWithDrawEntryId + "/" + testDrawId,
-			ExpectedStatus:  200,
-			ExpectedContent: []string{`"hasAccess":true`},
-			TestAppFactory:  setupTestApp,
-		}
-
-		scenario.Test(t)
-	})
-
-	t.Run("Access denied when user meets no criteria", func(t *testing.T) {
-		app, err := tests.NewTestApp(testDataDir)
-		if err != nil {
-			t.Fatal(err)
-		}
-		defer app.Cleanup()
-
-		bindAppHooks(app)
-
-		userWithNoAccessId := "2y5ysc47g9l6ebq"
-
-		scenario := tests.ApiScenario{
-			Name:            "No access user",
-			Method:          http.MethodGet,
-			URL:             "/access/" + userWithNoAccessId + "/" + testDrawId,
-			ExpectedStatus:  200,
-			ExpectedContent: []string{`"hasAccess":false`},
-			TestAppFactory:  setupTestApp,
-		}
-
-		scenario.Test(t)
+			for _, scenario := range scenarios {
+				scenario.Test(t)
+			}
 	})
 }
