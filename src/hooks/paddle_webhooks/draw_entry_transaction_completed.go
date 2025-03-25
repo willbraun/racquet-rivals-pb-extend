@@ -1,4 +1,4 @@
-package hooks
+package paddle_webhooks
 
 import (
 	"encoding/json"
@@ -8,7 +8,6 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-// Check if a given user has access to participate in a given draw
 func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		se.Router.POST("/webhook/draw-entry-transaction-completed", func(e *core.RequestEvent) error {
@@ -27,6 +26,9 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 					"details": err.Error(),
 				})
 			}
+
+			// TODO: Implement the logic for this webhook
+			return e.JSON(http.StatusOK, requestBody)
 
 			// Get the user who made the purchase, by user_id in custom_data
 			// If no user or user not found, throw error (and send me email?)

@@ -1,10 +1,9 @@
-package tests
+package hooks
 
 import (
 	"fmt"
 	"log"
 	"net/http"
-	"pocketbase_extend/src/hooks"
 	"testing"
 
 	"github.com/pocketbase/pocketbase/core"
@@ -19,7 +18,7 @@ func TestAwardPoints(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		hooks.RegisterAllHooks(testApp)
+		RegisterAllHooks(testApp)
 
 		return testApp
 	}

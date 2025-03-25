@@ -1,10 +1,9 @@
-package tests
+package hooks
 
 import (
 	"fmt"
 	"log"
 	"net/http"
-	"pocketbase_extend/src/hooks"
 	"testing"
 	"time"
 
@@ -55,7 +54,7 @@ func TestPredictionCloseUpdate(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				hooks.RegisterAllHooks(testApp)
+				RegisterAllHooks(testApp)
 
 				return testApp
 			},
@@ -108,7 +107,7 @@ func TestPredictionCloseUpdate(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				hooks.RegisterAllHooks(testApp)
+				RegisterAllHooks(testApp)
 
 				slot15, err := testApp.FindRecordById("draw_slot", r16Slot15Id)
 				if err != nil {
@@ -171,7 +170,7 @@ func TestPredictionCloseUpdate(t *testing.T) {
 					t.Fatal(err)
 				}
 
-				hooks.RegisterAllHooks(testApp)
+				RegisterAllHooks(testApp)
 
 				slot15, err := testApp.FindRecordById("draw_slot", r16Slot15Id)
 				if err != nil {

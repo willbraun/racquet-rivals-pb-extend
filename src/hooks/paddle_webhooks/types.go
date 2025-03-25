@@ -1,4 +1,4 @@
-package hooks
+package paddle_webhooks
 
 import "time"
 

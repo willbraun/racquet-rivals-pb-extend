@@ -1,9 +1,14 @@
 package hooks
 
-import "github.com/pocketbase/pocketbase/core"
+import (
+	"pocketbase_extend/src/hooks/paddle_webhooks"
+
+	"github.com/pocketbase/pocketbase/core"
+)
 
 func RegisterAllHooks(app core.App) {
 	RegisterAccessHook(app)
 	RegisterPredictionCloseHook(app)
 	RegisterAwardPointsHook(app)
+	paddle_webhooks.RegisterAllPaddleWebhooks(app)
 }

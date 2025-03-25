@@ -1,8 +1,7 @@
-package tests
+package hooks
 
 import (
 	"net/http"
-	"pocketbase_extend/src/hooks"
 	"testing"
 
 	"github.com/pocketbase/pocketbase/tests"
@@ -15,7 +14,7 @@ func TestAccessEndpoint(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		hooks.RegisterAllHooks(testApp)
+		RegisterAllHooks(testApp)
 
 		return testApp
 	}
