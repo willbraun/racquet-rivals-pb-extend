@@ -30,6 +30,8 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 			// TODO: Implement the logic for this webhook
 			return e.JSON(http.StatusOK, requestBody)
 
+			// if this is not transaction.completed event, return early, status 400
+
 			// Get the user who made the purchase, by user_id in custom_data
 			// If no user or user not found, throw error (and send me email?)
 
