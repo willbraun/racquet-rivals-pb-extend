@@ -17,42 +17,44 @@ func RegisterAccessHook(app core.App) {
 			drawId := strings.Trim(e.Request.PathValue("draw_id"), " ")
 
 			if userId == "" {
-				return e.JSON(http.StatusBadRequest, map[string]interface{}{
+				return e.JSON(http.StatusBadRequest, map[string]string{
 					"error": "Must provide user_id",
 				})
 			}
 
 			if drawId == "" {
-				return e.JSON(http.StatusBadRequest, map[string]interface{}{
+				return e.JSON(http.StatusBadRequest, map[string]string{
 					"error": "Must provide draw_id",
 				})
 			}
 
 			user, err := app.FindRecordById("user", userId)
 			if err != nil {
-				return e.JSON(http.StatusNotFound, map[string]interface{}{
-					"error": "User not found",
+				return e.JSON(http.StatusNotFound, map[string]any{
+					"error":   "User not found",
+					"details": err.Error(),
 				})
 			}
 
 			requestedUsername := user.GetString("username")
 
 			if requestedUsername != e.Auth.GetString("username") {
-				return e.JSON(http.StatusForbidden, map[string]interface{}{
+				return e.JSON(http.StatusForbidden, map[string]string{
 					"error": fmt.Sprintf("You don't have permission to access %s's data", requestedUsername),
 				})
 			}
 
 			draw, err := app.FindRecordById("draw", drawId)
 			if err != nil {
-				return e.JSON(http.StatusNotFound, map[string]interface{}{
-					"error": "Draw not found",
+				return e.JSON(http.StatusNotFound, map[string]any{
+					"error":   "Draw not found",
+					"details": err.Error(),
 				})
 			}
 
 			// Check if user is grandfathered in
 			if user.GetBool("grandfathered") {
-				return e.JSON(http.StatusOK, map[string]interface{}{
+				return e.JSON(http.StatusOK, map[string]any{
 					"hasAccess": true,
 				})
 			}
@@ -65,7 +67,7 @@ func RegisterAccessHook(app core.App) {
 			if !subscriptionStartDate.IsZero() && !subscriptionEndDate.IsZero() {
 				if (drawStartDate.After(subscriptionStartDate) || drawStartDate.Equal(subscriptionStartDate)) &&
 					(drawStartDate.Before(subscriptionEndDate) || drawStartDate.Equal(subscriptionEndDate)) {
-					return e.JSON(http.StatusOK, map[string]interface{}{
+					return e.JSON(http.StatusOK, map[string]any{
 						"hasAccess": true,
 					})
 				}
@@ -75,19 +77,20 @@ func RegisterAccessHook(app core.App) {
 			filter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, drawId)
 			entries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 1, 0)
 			if err != nil {
-				return e.JSON(http.StatusInternalServerError, map[string]interface{}{
-					"error": "Error checking draw access",
+				return e.JSON(http.StatusInternalServerError, map[string]any{
+					"error":   "Error checking draw access",
+					"details": err.Error(),
 				})
 			}
 
 			if len(entries) > 0 {
-				return e.JSON(http.StatusOK, map[string]interface{}{
+				return e.JSON(http.StatusOK, map[string]bool{
 					"hasAccess": true,
 				})
 			}
 
 			// If none of the access conditions were met
-			return e.JSON(http.StatusOK, map[string]interface{}{
+			return e.JSON(http.StatusOK, map[string]any{
 				"hasAccess": false,
 			})
 		}).Bind(apis.RequireAuth())

@@ -25,21 +25,27 @@ type TransactionCompletedData struct {
 	UpdatedAt      time.Time          `json:"updated_at"`
 	RevisedAt      *time.Time         `json:"revised_at"`
 	BusinessID     *string            `json:"business_id"`
-	CustomData     interface{}        `json:"custom_data"`
+	CustomData     CustomData         `json:"custom_data"`
 	CustomerID     string             `json:"customer_id"`
 	DiscountID     *string            `json:"discount_id"`
 	CurrencyCode   string             `json:"currency_code"`
 	BillingPeriod  BillingPeriod      `json:"billing_period"`
 	InvoiceNumber  string             `json:"invoice_number"`
-	BillingDetails interface{}        `json:"billing_details"`
+	BillingDetails any                `json:"billing_details"`
 	CollectionMode string             `json:"collection_mode"`
 	SubscriptionID string             `json:"subscription_id"`
 }
 
+type CustomData struct {
+	UserID       string  `json:"user_id"`
+	MensDrawID   *string `json:"mens_draw_id,omitempty"`
+	WomensDrawID *string `json:"womens_draw_id,omitempty"`
+}
+
 type TransactionItem struct {
-	Price     Price       `json:"price"`
-	Quantity  int         `json:"quantity"`
-	Proration interface{} `json:"proration"`
+	Price     Price `json:"price"`
+	Quantity  int   `json:"quantity"`
+	Proration any   `json:"proration"`
 }
 
 type Price struct {
@@ -53,12 +59,12 @@ type Price struct {
 	ProductID          string        `json:"product_id"`
 	UnitPrice          UnitPrice     `json:"unit_price"`
 	UpdatedAt          time.Time     `json:"updated_at"`
-	CustomData         interface{}   `json:"custom_data"`
+	CustomData         any           `json:"custom_data"`
 	Description        string        `json:"description"`
-	TrialPeriod        interface{}   `json:"trial_period"`
+	TrialPeriod        any           `json:"trial_period"`
 	BillingCycle       *BillingCycle `json:"billing_cycle"`
-	UnitPriceOverrides []interface{} `json:"unit_price_overrides"`
-	ImportMeta         interface{}   `json:"import_meta"`
+	UnitPriceOverrides []any         `json:"unit_price_overrides"`
+	ImportMeta         any           `json:"import_meta"`
 }
 
 type PriceQuantity struct {
@@ -116,17 +122,17 @@ type ItemTotals struct {
 }
 
 type Product struct {
-	ID          string      `json:"id"`
-	Name        string      `json:"name"`
-	Type        string      `json:"type"`
-	Status      string      `json:"status"`
-	ImageURL    string      `json:"image_url"`
-	CreatedAt   time.Time   `json:"created_at"`
-	UpdatedAt   time.Time   `json:"updated_at"`
-	CustomData  interface{} `json:"custom_data"`
-	Description string      `json:"description"`
-	TaxCategory string      `json:"tax_category"`
-	ImportMeta  interface{} `json:"import_meta"`
+	ID          string    `json:"id"`
+	Name        string    `json:"name"`
+	Type        string    `json:"type"`
+	Status      string    `json:"status"`
+	ImageURL    string    `json:"image_url"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	CustomData  any       `json:"custom_data"`
+	Description string    `json:"description"`
+	TaxCategory string    `json:"tax_category"`
+	ImportMeta  any       `json:"import_meta"`
 }
 
 type TaxRateUsed struct {
