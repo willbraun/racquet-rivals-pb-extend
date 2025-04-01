@@ -31,7 +31,7 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 			var requestBody PaddleTransactionCompleted
 			if err := json.Unmarshal(bodyBytes, &requestBody); err != nil {
 				return e.JSON(http.StatusBadRequest, map[string]any{
-					"error":   "Error unmarshaling webhook JSON payload",
+					"error":   "Invalid JSON format",
 					"details": err.Error(),
 				})
 			}
@@ -44,9 +44,6 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 					"details": err.Error(),
 				})
 			}
-
-			jsonBytes, _ := json.MarshalIndent(requestBody, "", "  ")
-			fmt.Println("Unmarshaled webhook payload:\n" + string(jsonBytes))
 
 			// Get the user who made the purchase
 			userId := requestBody.Data.CustomData.UserID
@@ -180,8 +177,8 @@ func validateWebhookPayload(payload PaddleTransactionCompleted) error {
 		return fmt.Errorf("missing event_id")
 	}
 
-	if payload.EventType == "" {
-		return fmt.Errorf("missing event_type")
+	if payload.EventType != "transaction.completed" {
+		return fmt.Errorf("invalid event_type. Expected transaction.completed, got %s", payload.EventType)
 	}
 
 	if payload.Data.CustomData.UserID == "" {
