@@ -17,24 +17,36 @@ import (
 const testDataDir = "../../../test_pb_data"
 
 func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
-	mockDataPath := filepath.Join("mock_data", "mens_draw_entry.json")
-	mockData, err := os.ReadFile(mockDataPath)
-	if err != nil {
-		t.Fatalf("Failed to read mock data: %v", err)
+	// Load all mock data files for testing
+	mockDataFiles := map[string]string{
+		"Men":   filepath.Join("mock_data", "mens_draw_entry.json"),
+		"Women": filepath.Join("mock_data", "womens_draw_entry.json"),
+		"Both":  filepath.Join("mock_data", "both_draw_entry.json"),
 	}
 
-	mockDataStr := string(mockData)
+	mockDataStr := make(map[string]string)
+	webhookData := make(map[string]PaddleTransactionCompleted)
 
-	var webhookData PaddleTransactionCompleted
-	if err := json.Unmarshal(mockData, &webhookData); err != nil {
-		t.Fatalf("Failed to parse mock data: %v", err)
+	for productType, path := range mockDataFiles {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatalf("Failed to read mock data for %s: %v", productType, err)
+		}
+		mockDataStr[productType] = string(data)
+
+		var webhook PaddleTransactionCompleted
+		if err := json.Unmarshal(data, &webhook); err != nil {
+			t.Fatalf("Failed to parse mock data for %s: %v", productType, err)
+		}
+		webhookData[productType] = webhook
 	}
 
-	userId := webhookData.Data.CustomData.UserID
-	mensDrawId := *webhookData.Data.CustomData.MensDrawID
+	// Extract user and draw IDs
+	userId := webhookData["Men"].Data.CustomData.UserID
+	mensDrawId := *webhookData["Men"].Data.CustomData.MensDrawID
+	womensDrawId := *webhookData["Women"].Data.CustomData.WomensDrawID
 
 	// Test apps
-
 	setupTestAppWithExistingEntry := func(t testing.TB) *tests.TestApp {
 		testApp, err := tests.NewTestApp(testDataDir)
 		if err != nil {
@@ -71,7 +83,6 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 	}
 
 	// Test functions
-
 	checkBeforeNonExistent := func(t testing.TB, app *tests.TestApp, e *core.ServeEvent) {
 		filter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, mensDrawId)
 		entries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 0, 0)
@@ -98,14 +109,14 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 		}
 	}
 
-	checkAfterExists := func(t testing.TB, app *tests.TestApp, res *http.Response) {
+	checkMensEntryExists := func(t testing.TB, app *tests.TestApp, res *http.Response) {
 		filter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, mensDrawId)
 		entries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 0, 0)
 		if err != nil {
 			t.Fatalf("Failed to check for existing entries: %v", err)
 		}
 
-		assert.Equal(t, 1, len(entries), "user_draw_entry record should exist after test")
+		assert.Equal(t, 1, len(entries), "mens's user_draw_entry record should exist after test")
 
 		if len(entries) > 0 {
 			entry := entries[0]
@@ -114,32 +125,92 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 		}
 	}
 
+	checkWomensEntryExists := func(t testing.TB, app *tests.TestApp, res *http.Response) {
+		filter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, womensDrawId)
+		entries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 0, 0)
+		if err != nil {
+			t.Fatalf("Failed to check for existing entries: %v", err)
+		}
+
+		assert.Equal(t, 1, len(entries), "women's user_draw_entry record should exist after test")
+
+		if len(entries) > 0 {
+			entry := entries[0]
+			assert.Equal(t, userId, entry.GetString("user_id"), "user_id should match webhook data")
+			assert.Equal(t, womensDrawId, entry.GetString("draw_id"), "draw_id should match webhook data")
+		}
+	}
+
+	checkBothEntriesExist := func(t testing.TB, app *tests.TestApp, res *http.Response) {
+		// Check men's entry
+		mensFilter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, mensDrawId)
+		mensEntries, err := app.FindRecordsByFilter("user_draw_entry", mensFilter, "", 0, 0)
+		if err != nil {
+			t.Fatalf("Failed to check for existing men's entries: %v", err)
+		}
+		assert.Equal(t, 1, len(mensEntries), "men's user_draw_entry record should exist after adding both draws")
+
+		// Check women's entry
+		womensFilter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, womensDrawId)
+		womensEntries, err := app.FindRecordsByFilter("user_draw_entry", womensFilter, "", 0, 0)
+		if err != nil {
+			t.Fatalf("Failed to check for existing women's entries: %v", err)
+		}
+		assert.Equal(t, 1, len(womensEntries), "women's user_draw_entry record should exist after adding both draws")
+	}
+
 	scenarios := []tests.ApiScenario{
 		{
-			Name:           "Successfully process transaction completed webhook",
+			Name:           "Successfully process men's transaction completed webhook",
 			Method:         http.MethodPost,
 			URL:            "/webhook/draw-entry-transaction-completed",
-			Body:           strings.NewReader(mockDataStr),
+			Body:           strings.NewReader(mockDataStr["Men"]),
 			ExpectedStatus: 200,
 			ExpectedContent: []string{
 				`"message":"Draw entry added successfully"`,
 			},
 			TestAppFactory: setupTestApp,
 			BeforeTestFunc: checkBeforeNonExistent,
-			AfterTestFunc:  checkAfterExists,
+			AfterTestFunc:  checkMensEntryExists,
+		},
+		{
+			Name:           "Successfully process women's transaction completed webhook",
+			Method:         http.MethodPost,
+			URL:            "/webhook/draw-entry-transaction-completed",
+			Body:           strings.NewReader(mockDataStr["Women"]),
+			ExpectedStatus: 200,
+			ExpectedContent: []string{
+				`"message":"Draw entry added successfully"`,
+			},
+			TestAppFactory: setupTestApp,
+			BeforeTestFunc: checkBeforeNonExistent,
+			AfterTestFunc:  checkWomensEntryExists,
+		},
+		{
+			Name:           "Successfully process both draws transaction completed webhook",
+			Method:         http.MethodPost,
+			URL:            "/webhook/draw-entry-transaction-completed",
+			Body:           strings.NewReader(mockDataStr["Both"]),
+			ExpectedStatus: 200,
+			ExpectedContent: []string{
+				`"message":"Draw entry added successfully"`,
+			},
+			TestAppFactory: setupTestApp,
+			BeforeTestFunc: checkBeforeNonExistent,
+			AfterTestFunc:  checkBothEntriesExist,
 		},
 		{
 			Name:           "Idempotent request (sending the same webhook twice)",
 			Method:         http.MethodPost,
 			URL:            "/webhook/draw-entry-transaction-completed",
-			Body:           strings.NewReader(mockDataStr),
+			Body:           strings.NewReader(mockDataStr["Men"]),
 			ExpectedStatus: 200,
 			ExpectedContent: []string{
 				`"message":"Draw entry added successfully"`,
 			},
 			TestAppFactory: setupTestAppWithExistingEntry,
 			BeforeTestFunc: checkBeforeExists,
-			AfterTestFunc:  checkAfterExists,
+			AfterTestFunc:  checkMensEntryExists,
 		},
 	}
 
@@ -161,38 +232,105 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 		return testApp
 	}
 
+	// Load base mock data for modifications
 	mockDataPath := filepath.Join("mock_data", "mens_draw_entry.json")
 	mockData, err := os.ReadFile(mockDataPath)
 	if err != nil {
 		t.Fatalf("Failed to read mock data: %v", err)
 	}
 
-	var webhookData PaddleTransactionCompleted
-	if err := json.Unmarshal(mockData, &webhookData); err != nil {
+	var baseWebhook PaddleTransactionCompleted
+	if err := json.Unmarshal(mockData, &baseWebhook); err != nil {
 		t.Fatalf("Failed to parse mock data: %v", err)
 	}
 
-	// Create modified versions of the original data
+	mensDrawID := "test-mens-draw-id"
+	womensDrawID := "test-womens-draw-id"
 
-	// 1. Missing men's draw ID
-	missingMensDrawData := PaddleTransactionCompleted{}
-	if err := deepCopy(webhookData, &missingMensDrawData); err != nil {
-		t.Fatalf("Failed to create deep copy: %v", err)
+	// Create modified test data based on test cases
+	testCases := []struct {
+		name        string
+		modifyFunc  func(*PaddleTransactionCompleted)
+		expectedMsg string
+	}{
+		{
+			name: "Missing men's draw ID for men's product",
+			modifyFunc: func(p *PaddleTransactionCompleted) {
+				p.Data.Items[0].Price.ProductID = productIDs["Men"]
+				p.Data.CustomData.MensDrawID = nil
+				p.Data.CustomData.WomensDrawID = nil
+			},
+			expectedMsg: "men's draw entry must also have mens_draw_id in custom_data",
+		},
+		{
+			name: "Missing women's draw ID for women's product",
+			modifyFunc: func(p *PaddleTransactionCompleted) {
+				p.Data.Items[0].Price.ProductID = productIDs["Women"]
+				p.Data.CustomData.MensDrawID = nil
+				p.Data.CustomData.WomensDrawID = nil
+			},
+			expectedMsg: "women's draw entry must also have womens_draw_id in custom_data",
+		},
+		{
+			name: "Missing mens_draw_id for both draws product",
+			modifyFunc: func(p *PaddleTransactionCompleted) {
+				p.Data.Items[0].Price.ProductID = productIDs["Both"]
+				p.Data.CustomData.MensDrawID = nil
+				p.Data.CustomData.WomensDrawID = &womensDrawID
+			},
+			expectedMsg: "men's and women's joint entry must also have mens_draw_id and womens_draw_id in custom_data",
+		},
+		{
+			name: "Missing womens_draw_id for both draws product",
+			modifyFunc: func(p *PaddleTransactionCompleted) {
+				p.Data.Items[0].Price.ProductID = productIDs["Both"]
+				p.Data.CustomData.MensDrawID = &mensDrawID
+				p.Data.CustomData.WomensDrawID = nil
+			},
+			expectedMsg: "men's and women's joint entry must also have mens_draw_id and womens_draw_id in custom_data",
+		},
+		{
+			name: "Missing event_id",
+			modifyFunc: func(p *PaddleTransactionCompleted) {
+				p.EventID = ""
+			},
+			expectedMsg: "missing event_id",
+		},
+		{
+			name: "Invalid event_type",
+			modifyFunc: func(p *PaddleTransactionCompleted) {
+				p.EventType = "invalid.event"
+			},
+			expectedMsg: "invalid event_type. Expected transaction.completed, got invalid.event",
+		},
+		{
+			name: "Missing user_id",
+			modifyFunc: func(p *PaddleTransactionCompleted) {
+				p.Data.CustomData.UserID = ""
+			},
+			expectedMsg: "missing user_id in custom_data",
+		},
+		{
+			name: "No items in transaction",
+			modifyFunc: func(p *PaddleTransactionCompleted) {
+				p.Data.Items = []TransactionItem{}
+			},
+			expectedMsg: "no items in transaction",
+		},
+		{
+			name: "Invalid product ID",
+			modifyFunc: func(p *PaddleTransactionCompleted) {
+				p.Data.Items[0].Price.ProductID = "invalid_product_id"
+			},
+			expectedMsg: "no valid products found",
+		},
 	}
 
-	missingMensDrawData.Data.CustomData.MensDrawID = nil
-	missingMensDrawDataStr, _ := json.Marshal(missingMensDrawData)
+	// Create API scenarios for each test case
+	var scenarios []tests.ApiScenario
 
-	// 2. No valid products
-	noProductsData := PaddleTransactionCompleted{}
-	if err := deepCopy(webhookData, &noProductsData); err != nil {
-		t.Fatalf("Failed to create deep copy: %v", err)
-	}
-
-	noProductsData.Data.Items = []TransactionItem{}
-	noProductsDataStr, _ := json.Marshal(noProductsData)
-
-	scenarios := []tests.ApiScenario{
+	// Add the basic cases
+	scenarios = append(scenarios, []tests.ApiScenario{
 		{
 			Name:           "Bad request - empty body",
 			Method:         http.MethodPost,
@@ -215,211 +353,36 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 			},
 			TestAppFactory: setupTestApp,
 		},
-		{
-			Name:           "Missing men's draw ID",
+	}...)
+
+	// Then add test cases for each validation case
+	for _, tc := range testCases {
+		testWebhook := PaddleTransactionCompleted{}
+		if err := deepCopy(baseWebhook, &testWebhook); err != nil {
+			t.Fatalf("Failed to create deep copy: %v", err)
+		}
+
+		tc.modifyFunc(&testWebhook)
+		testWebhookStr, _ := json.Marshal(testWebhook)
+
+		scenario := tests.ApiScenario{
+			Name:           tc.name,
 			Method:         http.MethodPost,
 			URL:            "/webhook/draw-entry-transaction-completed",
-			Body:           strings.NewReader(string(missingMensDrawDataStr)),
+			Body:           strings.NewReader(string(testWebhookStr)),
 			ExpectedStatus: 400,
 			ExpectedContent: []string{
-				`{"details":"men's draw entry must also have mens_draw_id in custom_data","error":"Invalid webhook payload format"}`,
+				fmt.Sprintf(`"details":"%s"`, tc.expectedMsg),
+				`"error":"Invalid webhook payload format"`,
 			},
 			TestAppFactory: setupTestApp,
-		},
-		{
-			Name:           "No valid products",
-			Method:         http.MethodPost,
-			URL:            "/webhook/draw-entry-transaction-completed",
-			Body:           strings.NewReader(string(noProductsDataStr)),
-			ExpectedStatus: 400,
-			ExpectedContent: []string{
-				`{"details":"no items in transaction","error":"Invalid webhook payload format"}`,
-			},
-			TestAppFactory: setupTestApp,
-		},
+		}
+
+		scenarios = append(scenarios, scenario)
 	}
 
 	for _, scenario := range scenarios {
 		scenario.Test(t)
-	}
-}
-
-// TestValidateWebhookPayload tests the validateWebhookPayload function directly
-func TestValidateWebhookPayload(t *testing.T) {
-	// Load the base test data to use as a template
-	mockDataPath := filepath.Join("mock_data", "mens_draw_entry.json")
-	mockData, err := os.ReadFile(mockDataPath)
-	if err != nil {
-		t.Fatalf("Failed to read mock data: %v", err)
-	}
-
-	var baseWebhook PaddleTransactionCompleted
-	if err := json.Unmarshal(mockData, &baseWebhook); err != nil {
-		t.Fatalf("Failed to parse mock data: %v", err)
-	}
-
-	mensDrawID := "test-mens-draw-id"
-	womensDrawID := "test-womens-draw-id"
-
-	// Create valid test cases for each product type
-	tests := []struct {
-		name    string
-		modify  func(*PaddleTransactionCompleted)
-		wantErr bool
-		errMsg  string
-	}{
-		{
-			name: "Valid men's draw",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.Items[0].Price.ProductID = productIDs["Men"]
-				p.Data.CustomData.MensDrawID = &mensDrawID
-				p.Data.CustomData.WomensDrawID = nil
-			},
-			wantErr: false,
-		},
-		{
-			name: "Valid men's draw, with both draws present",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.Items[0].Price.ProductID = productIDs["Men"]
-				p.Data.CustomData.MensDrawID = &mensDrawID
-				p.Data.CustomData.WomensDrawID = &womensDrawID
-			},
-			wantErr: false,
-		},
-		{
-			name: "Valid women's draw",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.Items[0].Price.ProductID = productIDs["Women"]
-				p.Data.CustomData.MensDrawID = nil
-				p.Data.CustomData.WomensDrawID = &womensDrawID
-			},
-			wantErr: false,
-		},
-		{
-			name: "Valid women's draw, with both draws present",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.Items[0].Price.ProductID = productIDs["Women"]
-				p.Data.CustomData.MensDrawID = &mensDrawID
-				p.Data.CustomData.WomensDrawID = &womensDrawID
-			},
-			wantErr: false,
-		},
-		{
-			name: "Valid both draws",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.Items[0].Price.ProductID = productIDs["Both"]
-				p.Data.CustomData.MensDrawID = &mensDrawID
-				p.Data.CustomData.WomensDrawID = &womensDrawID
-			},
-			wantErr: false,
-		},
-		{
-			name: "Missing men's draw ID for men's product",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.Items[0].Price.ProductID = productIDs["Men"]
-				p.Data.CustomData.MensDrawID = nil
-				p.Data.CustomData.WomensDrawID = nil
-			},
-			wantErr: true,
-			errMsg:  "men's draw entry must also have mens_draw_id in custom_data",
-		},
-		{
-			name: "Missing women's draw ID for women's product",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.Items[0].Price.ProductID = productIDs["Women"]
-				p.Data.CustomData.MensDrawID = nil
-				p.Data.CustomData.WomensDrawID = nil
-			},
-			wantErr: true,
-			errMsg:  "women's draw entry must also have womens_draw_id in custom_data",
-		},
-		{
-			name: "Missing mens_draw_id for both draws product",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.Items[0].Price.ProductID = productIDs["Both"]
-				p.Data.CustomData.MensDrawID = nil
-				p.Data.CustomData.WomensDrawID = &womensDrawID
-			},
-			wantErr: true,
-			errMsg:  "men's & women's joint entry must also have mens_draw_id and womens_draw_id in custom_data",
-		},
-		{
-			name: "Missing womens_draw_id for both draws product",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.Items[0].Price.ProductID = productIDs["Both"]
-				p.Data.CustomData.MensDrawID = &mensDrawID
-				p.Data.CustomData.WomensDrawID = nil
-			},
-			wantErr: true,
-			errMsg:  "men's & women's joint entry must also have mens_draw_id and womens_draw_id in custom_data",
-		},
-		{
-			name: "Missing event_id",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.EventID = ""
-			},
-			wantErr: true,
-			errMsg:  "missing event_id",
-		},
-		{
-			name: "Invalid event_type",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.EventType = "invalid.event"
-			},
-			wantErr: true,
-			errMsg:  "invalid event_type",
-		},
-		{
-			name: "Missing user_id",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.CustomData.UserID = ""
-			},
-			wantErr: true,
-			errMsg:  "missing user_id in custom_data",
-		},
-		{
-			name: "No items in transaction",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.Items = []TransactionItem{}
-			},
-			wantErr: true,
-			errMsg:  "no items in transaction",
-		},
-		{
-			name: "Invalid product ID",
-			modify: func(p *PaddleTransactionCompleted) {
-				p.Data.Items[0].Price.ProductID = "invalid_product_id"
-			},
-			wantErr: true,
-			errMsg:  "no valid products found",
-		},
-	}
-
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			// Create a copy of the base webhook
-			testWebhook := PaddleTransactionCompleted{}
-			if err := deepCopy(baseWebhook, &testWebhook); err != nil {
-				t.Fatalf("Failed to create deep copy: %v", err)
-			}
-
-			// Apply modifications specific to this test case
-			test.modify(&testWebhook)
-
-			// Call validateWebhookPayload
-			err := validateWebhookPayload(testWebhook)
-
-			// Check if error was expected
-			if (err != nil) != test.wantErr {
-				t.Errorf("validateWebhookPayload() error = %v, wantErr %v", err, test.wantErr)
-				return
-			}
-
-			// If error was expected, check if it contains the expected message
-			if test.wantErr && err != nil && !strings.Contains(err.Error(), test.errMsg) {
-				t.Errorf("validateWebhookPayload() error message = %v, expected to contain %v", err, test.errMsg)
-			}
-		})
 	}
 }
 

@@ -18,7 +18,7 @@
 					},
 					"tax_mode": "account_setting",
 					"created_at": "2024-03-01T12:00:00Z",
-					"product_id": "pro_01jpkgny45pjrxh3nnb7nck2zv",
+					"product_id": "pro_01jpkhe7h0se4fcr3bpf3cha1x",
 					"unit_price": {
 						"amount": "5",
 						"currency_code": "USD"
@@ -61,15 +61,15 @@
 						"subtotal": "5"
 					},
 					"product": {
-						"id": "pro_01jpkgny45pjrxh3nnb7nck2zv",
-						"name": "Men's Draw",
+						"id": "pro_01jpkhe7h0se4fcr3bpf3cha1x",
+						"name": "Women's Draw",
 						"type": "standard",
 						"status": "active",
 						"image_url": "https://example.com/product.png",
 						"created_at": "2024-03-01T12:00:00Z",
 						"updated_at": "2024-03-02T12:00:00Z",
 						"custom_data": null,
-						"description": "Participation in a men's draw",
+						"description": "Participation in a women's draw",
 						"import_meta": null,
 						"tax_category": "SaaS"
 					},
@@ -152,8 +152,8 @@
 		"business_id": null,
 		"custom_data": {
 			"user_id": "2y5ysc47g9l6ebq",
-			"mens_draw_id": "k8cu111f35ic7jm",
-			"womens_draw_id": null
+			"mens_draw_id": null,
+			"womens_draw_id": "2l1hqqi8puodmjq"
 		},
 		"customer_id": "ctm_example_001",
 		"discount_id": null,

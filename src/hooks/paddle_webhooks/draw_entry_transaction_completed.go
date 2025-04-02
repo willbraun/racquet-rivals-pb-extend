@@ -210,7 +210,7 @@ func validateWebhookPayload(payload PaddleTransactionCompleted) error {
 		}
 
 		if item.Price.ProductID == productIDs["Both"] && (payload.Data.CustomData.MensDrawID == nil || payload.Data.CustomData.WomensDrawID == nil) {
-			return fmt.Errorf("men's & women's joint entry must also have mens_draw_id and womens_draw_id in custom_data")
+			return fmt.Errorf("men's and women's joint entry must also have mens_draw_id and womens_draw_id in custom_data")
 		}
 	}
 
