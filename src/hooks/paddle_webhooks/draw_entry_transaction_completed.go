@@ -5,7 +5,9 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"os"
 
+	paddle "github.com/PaddleHQ/paddle-go-sdk/v3"
 	"github.com/pocketbase/pocketbase/core"
 )
 
@@ -18,6 +20,19 @@ var productIDs = map[string]string{
 func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		se.Router.POST("/webhook/draw-entry-transaction-completed", func(e *core.RequestEvent) error {
+			// Ensure the request is from Paddle
+			verifyWebhook := os.Getenv("SKIP_WEBHOOK_VERIFICATION") != "true"
+			if verifyWebhook {
+				webhookVerifier := paddle.NewWebhookVerifier(os.Getenv("DRAW_ENTRY_WEBHOOK_SECRET_KEY"))
+				_, err := webhookVerifier.Verify(e.Request)
+				if err != nil {
+					return e.JSON(http.StatusBadRequest, map[string]any{
+						"error":   "Invalid webhook signature",
+						"details": err.Error(),
+					})
+				}
+			}
+
 			// Get the request body
 			defer e.Request.Body.Close()
 			bodyBytes, err := io.ReadAll(e.Request.Body)
