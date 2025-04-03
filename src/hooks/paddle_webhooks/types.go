@@ -2,15 +2,17 @@ package paddle_webhooks
 
 import "time"
 
-type PaddleTransactionCompleted struct {
-	EventID        string                   `json:"event_id"`
-	EventType      string                   `json:"event_type"`
-	OccurredAt     time.Time                `json:"occurred_at"`
-	NotificationID string                   `json:"notification_id"`
-	Data           TransactionCompletedData `json:"data"`
+type PaddleDrawEntryTransaction = PaddleTransaction[DrawEntryCustomData]
+
+type PaddleTransaction[T any] struct {
+	EventID        string             `json:"event_id"`
+	EventType      string             `json:"event_type"`
+	OccurredAt     time.Time          `json:"occurred_at"`
+	NotificationID string             `json:"notification_id"`
+	Data           TransactionData[T] `json:"data"`
 }
 
-type TransactionCompletedData struct {
+type TransactionData[T any] struct {
 	ID             string             `json:"id"`
 	Items          []TransactionItem  `json:"items"`
 	Origin         string             `json:"origin"`
@@ -25,7 +27,7 @@ type TransactionCompletedData struct {
 	UpdatedAt      time.Time          `json:"updated_at"`
 	RevisedAt      *time.Time         `json:"revised_at"`
 	BusinessID     *string            `json:"business_id"`
-	CustomData     CustomData         `json:"custom_data"`
+	CustomData     *T                 `json:"custom_data"`
 	CustomerID     string             `json:"customer_id"`
 	DiscountID     *string            `json:"discount_id"`
 	CurrencyCode   string             `json:"currency_code"`
@@ -36,7 +38,7 @@ type TransactionCompletedData struct {
 	SubscriptionID string             `json:"subscription_id"`
 }
 
-type CustomData struct {
+type DrawEntryCustomData struct {
 	UserID       string  `json:"user_id"`
 	MensDrawID   *string `json:"mens_draw_id,omitempty"`
 	WomensDrawID *string `json:"womens_draw_id,omitempty"`
@@ -182,4 +184,63 @@ type CardDetails struct {
 type BillingPeriod struct {
 	EndsAt   time.Time `json:"ends_at"`
 	StartsAt time.Time `json:"starts_at"`
+}
+
+// Paddle subscription types
+
+type PaddleSubscription[T any] struct {
+	EventID        string              `json:"event_id"`
+	EventType      string              `json:"event_type"`
+	OccurredAt     time.Time           `json:"occurred_at"`
+	NotificationID string              `json:"notification_id"`
+	Data           SubscriptionData[T] `json:"data"`
+	Meta           RequestMeta         `json:"meta"`
+}
+
+type RequestMeta struct {
+	RequestID string `json:"request_id"`
+}
+
+type SubscriptionData[T any] struct {
+	ID                   string             `json:"id"`
+	Status               string             `json:"status"`
+	CustomerID           string             `json:"customer_id"`
+	AddressID            string             `json:"address_id"`
+	BusinessID           *string            `json:"business_id"`
+	CurrencyCode         string             `json:"currency_code"`
+	CreatedAt            time.Time          `json:"created_at"`
+	UpdatedAt            time.Time          `json:"updated_at"`
+	StartedAt            time.Time          `json:"started_at"`
+	FirstBilledAt        time.Time          `json:"first_billed_at"`
+	NextBilledAt         time.Time          `json:"next_billed_at"`
+	PausedAt             *time.Time         `json:"paused_at"`
+	CanceledAt           *time.Time         `json:"canceled_at"`
+	CollectionMode       string             `json:"collection_mode"`
+	BillingDetails       any                `json:"billing_details"`
+	CurrentBillingPeriod BillingPeriod      `json:"current_billing_period"`
+	BillingCycle         BillingCycle       `json:"billing_cycle"`
+	ScheduledChange      *any               `json:"scheduled_change"`
+	Items                []SubscriptionItem `json:"items"`
+	CustomData           *T                 `json:"custom_data"`
+	ManagementURLs       ManagementURLs     `json:"management_urls"`
+	Discount             *any               `json:"discount"`
+	ImportMeta           *any               `json:"import_meta"`
+}
+
+type SubscriptionItem struct {
+	Status             string    `json:"status"`
+	Quantity           int       `json:"quantity"`
+	Recurring          bool      `json:"recurring"`
+	CreatedAt          time.Time `json:"created_at"`
+	UpdatedAt          time.Time `json:"updated_at"`
+	PreviouslyBilledAt time.Time `json:"previously_billed_at"`
+	NextBilledAt       time.Time `json:"next_billed_at"`
+	TrialDates         *any      `json:"trial_dates"`
+	Price              Price     `json:"price"`
+	Product            Product   `json:"product"`
+}
+
+type ManagementURLs struct {
+	UpdatePaymentMethod string `json:"update_payment_method"`
+	Cancel              string `json:"cancel"`
 }

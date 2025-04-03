@@ -43,7 +43,7 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 				})
 			}
 
-			var requestBody PaddleTransactionCompleted
+			var requestBody PaddleDrawEntryTransaction
 			if err := json.Unmarshal(bodyBytes, &requestBody); err != nil {
 				return e.JSON(http.StatusBadRequest, map[string]any{
 					"error":   "Invalid JSON format",
@@ -187,7 +187,7 @@ func createUserDrawEntryRecord(app core.App, e *core.RequestEvent, userId string
 	return nil
 }
 
-func validateWebhookPayload(payload PaddleTransactionCompleted) error {
+func validateWebhookPayload(payload PaddleDrawEntryTransaction) error {
 	if payload.EventID == "" {
 		return fmt.Errorf("missing event_id")
 	}

@@ -25,7 +25,7 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 	}
 
 	mockDataStr := make(map[string]string)
-	webhookData := make(map[string]PaddleTransactionCompleted)
+	webhookData := make(map[string]PaddleDrawEntryTransaction)
 
 	for productType, path := range mockDataFiles {
 		data, err := os.ReadFile(path)
@@ -34,7 +34,7 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 		}
 		mockDataStr[productType] = string(data)
 
-		var webhook PaddleTransactionCompleted
+		var webhook PaddleDrawEntryTransaction
 		if err := json.Unmarshal(data, &webhook); err != nil {
 			t.Fatalf("Failed to parse mock data for %s: %v", productType, err)
 		}
@@ -239,7 +239,7 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 		t.Fatalf("Failed to read mock data: %v", err)
 	}
 
-	var baseWebhook PaddleTransactionCompleted
+	var baseWebhook PaddleDrawEntryTransaction
 	if err := json.Unmarshal(mockData, &baseWebhook); err != nil {
 		t.Fatalf("Failed to parse mock data: %v", err)
 	}
@@ -250,12 +250,12 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 	// Create modified test data based on test cases
 	testCases := []struct {
 		name        string
-		modifyFunc  func(*PaddleTransactionCompleted)
+		modifyFunc  func(*PaddleDrawEntryTransaction)
 		expectedMsg string
 	}{
 		{
 			name: "Missing men's draw ID for men's product",
-			modifyFunc: func(p *PaddleTransactionCompleted) {
+			modifyFunc: func(p *PaddleDrawEntryTransaction) {
 				p.Data.Items[0].Price.ProductID = productIDs["Men"]
 				p.Data.CustomData.MensDrawID = nil
 				p.Data.CustomData.WomensDrawID = nil
@@ -264,7 +264,7 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 		},
 		{
 			name: "Missing women's draw ID for women's product",
-			modifyFunc: func(p *PaddleTransactionCompleted) {
+			modifyFunc: func(p *PaddleDrawEntryTransaction) {
 				p.Data.Items[0].Price.ProductID = productIDs["Women"]
 				p.Data.CustomData.MensDrawID = nil
 				p.Data.CustomData.WomensDrawID = nil
@@ -273,7 +273,7 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 		},
 		{
 			name: "Missing mens_draw_id for both draws product",
-			modifyFunc: func(p *PaddleTransactionCompleted) {
+			modifyFunc: func(p *PaddleDrawEntryTransaction) {
 				p.Data.Items[0].Price.ProductID = productIDs["Both"]
 				p.Data.CustomData.MensDrawID = nil
 				p.Data.CustomData.WomensDrawID = &womensDrawID
@@ -282,7 +282,7 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 		},
 		{
 			name: "Missing womens_draw_id for both draws product",
-			modifyFunc: func(p *PaddleTransactionCompleted) {
+			modifyFunc: func(p *PaddleDrawEntryTransaction) {
 				p.Data.Items[0].Price.ProductID = productIDs["Both"]
 				p.Data.CustomData.MensDrawID = &mensDrawID
 				p.Data.CustomData.WomensDrawID = nil
@@ -291,35 +291,35 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 		},
 		{
 			name: "Missing event_id",
-			modifyFunc: func(p *PaddleTransactionCompleted) {
+			modifyFunc: func(p *PaddleDrawEntryTransaction) {
 				p.EventID = ""
 			},
 			expectedMsg: "missing event_id",
 		},
 		{
 			name: "Invalid event_type",
-			modifyFunc: func(p *PaddleTransactionCompleted) {
+			modifyFunc: func(p *PaddleDrawEntryTransaction) {
 				p.EventType = "invalid.event"
 			},
 			expectedMsg: "invalid event_type. Expected transaction.completed, got invalid.event",
 		},
 		{
 			name: "Missing user_id",
-			modifyFunc: func(p *PaddleTransactionCompleted) {
+			modifyFunc: func(p *PaddleDrawEntryTransaction) {
 				p.Data.CustomData.UserID = ""
 			},
 			expectedMsg: "missing user_id in custom_data",
 		},
 		{
 			name: "No items in transaction",
-			modifyFunc: func(p *PaddleTransactionCompleted) {
+			modifyFunc: func(p *PaddleDrawEntryTransaction) {
 				p.Data.Items = []TransactionItem{}
 			},
 			expectedMsg: "no items in transaction",
 		},
 		{
 			name: "Invalid product ID",
-			modifyFunc: func(p *PaddleTransactionCompleted) {
+			modifyFunc: func(p *PaddleDrawEntryTransaction) {
 				p.Data.Items[0].Price.ProductID = "invalid_product_id"
 			},
 			expectedMsg: "no valid products found",
@@ -357,7 +357,7 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 
 	// Then add test cases for each validation case
 	for _, tc := range testCases {
-		testWebhook := PaddleTransactionCompleted{}
+		testWebhook := PaddleDrawEntryTransaction{}
 		if err := deepCopy(baseWebhook, &testWebhook); err != nil {
 			t.Fatalf("Failed to create deep copy: %v", err)
 		}
