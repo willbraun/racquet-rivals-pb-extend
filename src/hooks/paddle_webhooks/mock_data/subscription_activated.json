@@ -1,0 +1,86 @@
+{
+	"event_id": "evt_01hv8x29kz0t586xy6zn1a62zz",
+	"event_type": "subscription_activated",
+	"occurred_at": "2024-04-12T10:18:48.831Z",
+	"notification_id": "ntf_01hv8x29kz0t586xy6zn1a62aa",
+	"data": {
+		"id": "sub_01hv8x29kz0t586xy6zn1a62ny",
+		"items": [
+			{
+				"price": {
+					"id": "pri_01gsz8x8sawmvhz1pv30nge1ke",
+					"name": "Annual",
+					"type": "standard",
+					"status": "active",
+					"quantity": {
+						"maximum": 1,
+						"minimum": 1
+					},
+					"tax_mode": "account_setting",
+					"created_at": "2023-02-23T13:55:22.538367Z",
+					"product_id": "pro_01jpkhsd61k1acva107vz6dj0v",
+					"unit_price": {
+						"amount": "20",
+						"currency_code": "USD"
+					},
+					"updated_at": "2024-04-11T13:54:52.254748Z",
+					"custom_data": null,
+					"description": "Monthly",
+					"import_meta": null,
+					"trial_period": null,
+					"billing_cycle": {
+						"interval": "month",
+						"frequency": 1
+					},
+					"unit_price_overrides": []
+				},
+				"status": "active",
+				"product": {
+					"id": "pro_01jpkhsd61k1acva107vz6dj0v",
+					"name": "Full Access",
+					"type": "standard",
+					"status": "active",
+					"image_url": "",
+					"created_at": "2023-02-23T12:43:46.605Z",
+					"updated_at": "2024-04-05T15:53:44.687Z",
+					"custom_data": null
+				},
+				"quantity": 10,
+				"recurring": true,
+				"created_at": "2024-04-12T10:18:48.831Z",
+				"updated_at": "2024-04-12T10:18:48.831Z",
+				"trial_dates": null,
+				"next_billed_at": "2024-05-12T10:18:47.635628Z",
+				"previously_billed_at": "2024-04-12T10:18:47.635628Z"
+			}
+		],
+		"status": "active",
+		"discount": null,
+		"paused_at": null,
+		"address_id": "add_01hv8gq3318ktkfengj2r75gfx",
+		"created_at": "2024-04-12T10:18:48.831Z",
+		"started_at": "2024-04-12T10:18:47.635628Z",
+		"updated_at": "2024-04-12T10:18:48.831Z",
+		"business_id": null,
+		"canceled_at": null,
+		"custom_data": {
+			"user_id": "2y5ysc47g9l6ebq"
+		},
+		"customer_id": "ctm_01hv6y1jedq4p1n0yqn5ba3ky4",
+		"import_meta": null,
+		"billing_cycle": {
+			"interval": "annual",
+			"frequency": 1
+		},
+		"currency_code": "USD",
+		"next_billed_at": "2024-05-12T10:18:47.635628Z",
+		"billing_details": null,
+		"collection_mode": "automatic",
+		"first_billed_at": "2024-04-12T10:18:47.635628Z",
+		"scheduled_change": null,
+		"current_billing_period": {
+			"ends_at": "2024-05-12T10:18:47.635628Z",
+			"starts_at": "2024-04-12T10:18:47.635628Z"
+		}
+	}
+}

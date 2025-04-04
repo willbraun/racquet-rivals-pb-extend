@@ -6,4 +6,5 @@ import (
 
 func RegisterAllPaddleWebhooks(app core.App) {
 	RegisterDrawEntryTransactionCompletedHook(app)
+	RegisterSubscriptionActivatedHook(app)
 }

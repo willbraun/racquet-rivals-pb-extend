@@ -14,8 +14,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-const testDataDir = "../../../test_pb_data"
-
 func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 	// Load all mock data files for testing
 	mockDataFiles := map[string]string{

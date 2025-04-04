@@ -8,6 +8,8 @@ import (
 	"github.com/joho/godotenv"
 )
 
+const testDataDir = "../../../test_pb_data"
+
 // Load environment variables from .env file for all tests in this package
 func TestMain(m *testing.M) {
 	if err := godotenv.Load("../../../.env"); err != nil {

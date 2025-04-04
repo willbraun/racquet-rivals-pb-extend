@@ -132,6 +132,10 @@ func validateSubscriptionActivatedPayload(payload PaddleSubscriptionActivated) e
 		return fmt.Errorf("no items in transaction")
 	}
 
+	if payload.Data.Items[0].Product.ID != "pro_01jpkhsd61k1acva107vz6dj0v" {
+		return fmt.Errorf("invalid product ID. Expected pro_01jpkhsd61k1acva107vz6dj0v, got %s", payload.Data.Items[0].Product.ID)
+	}
+
 	if payload.Data.Status != "active" {
 		return fmt.Errorf("subscription status is not active: %s", payload.Data.Status)
 	}
