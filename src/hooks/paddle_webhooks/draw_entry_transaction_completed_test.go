@@ -206,7 +206,7 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 			Body:           strings.NewReader(mockDataStr["Men"]),
 			ExpectedStatus: 200,
 			ExpectedContent: []string{
-				`"message":"Draw entry added successfully"`,
+				`"message":"Draw entry already exists, no new entry created"`,
 			},
 			TestAppFactory: setupTestAppWithExistingEntry,
 			BeforeTestFunc: checkBeforeExists,

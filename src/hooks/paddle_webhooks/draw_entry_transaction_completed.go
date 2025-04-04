@@ -96,6 +96,7 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 
 			// Create the user_draw_entry records
 			for _, drawType := range drawTypes {
+				var drawId string
 				switch drawType {
 				case "Men":
 					if requestBody.Data.CustomData.MensDrawID == nil {
@@ -103,39 +104,63 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 							"error": "Men's draw ID is required for men's product",
 						})
 					}
-
-					mensDrawId := *requestBody.Data.CustomData.MensDrawID
-					_, err = app.FindRecordById("draw", mensDrawId)
-					if err != nil {
-						return e.JSON(http.StatusNotFound, map[string]any{
-							"error":   fmt.Sprintf("Men's draw with ID %s not found", mensDrawId),
-							"details": err.Error(),
-						})
-					}
-
-					if err := createUserDrawEntryRecord(app, e, userId, mensDrawId); err != nil {
-						return err
-					}
-
+					drawId = *requestBody.Data.CustomData.MensDrawID
 				case "Women":
 					if requestBody.Data.CustomData.WomensDrawID == nil {
 						return e.JSON(http.StatusBadRequest, map[string]any{
 							"error": "Women's draw ID is required for women's product",
 						})
 					}
+					drawId = *requestBody.Data.CustomData.WomensDrawID
+				default:
+					return e.JSON(http.StatusBadRequest, map[string]any{
+						"error": fmt.Sprintf("Invalid draw type: %s", drawType),
+					})
+				}
 
-					womensDrawId := *requestBody.Data.CustomData.WomensDrawID
-					_, err = app.FindRecordById("draw", womensDrawId)
-					if err != nil {
-						return e.JSON(http.StatusNotFound, map[string]any{
-							"error":   fmt.Sprintf("Women's draw with ID %s not found", womensDrawId),
-							"details": err.Error(),
-						})
-					}
+				// Validate that the draw exists
+				_, err := app.FindRecordById("draw", drawId)
+				if err != nil {
+					return e.JSON(http.StatusNotFound, map[string]any{
+						"error":   fmt.Sprintf("%s's draw with ID %s not found", drawType, drawId),
+						"details": err.Error(),
+					})
+				}
 
-					if err := createUserDrawEntryRecord(app, e, userId, womensDrawId); err != nil {
-						return err
-					}
+				// If entry already exists, consider this a success (idempotent)
+				filter := fmt.Sprintf(`user_id="%s"&&draw_id="%s"`, userId, drawId)
+				existingEntries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 0, 0)
+				if err != nil {
+					return e.JSON(http.StatusInternalServerError, map[string]any{
+						"error":   "Failed to check for existing entries",
+						"details": err.Error(),
+					})
+				}
+
+				if len(existingEntries) > 0 {
+					return e.JSON(http.StatusOK, map[string]any{
+						"message": "Draw entry already exists, no new entry created",
+					})
+				}
+
+				// Create new user_draw_entry record
+				userDrawEntry, err := app.FindCollectionByNameOrId("user_draw_entry")
+				if err != nil {
+					return e.JSON(http.StatusInternalServerError, map[string]any{
+						"error":   "Failed to find user_draw_entry collection",
+						"details": err.Error(),
+					})
+				}
+
+				record := core.NewRecord(userDrawEntry)
+				record.Set("user_id", userId)
+				record.Set("draw_id", drawId)
+
+				if err := app.Save(record); err != nil {
+					return e.JSON(http.StatusInternalServerError, map[string]any{
+						"error":   fmt.Sprintf("Failed to save user_draw_entry record with user_id: %s and draw_id: %s", userId, drawId),
+						"details": err.Error(),
+					})
 				}
 			}
 
@@ -146,44 +171,6 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 
 		return se.Next()
 	})
-}
-
-func createUserDrawEntryRecord(app core.App, e *core.RequestEvent, userId string, drawId string) error {
-	// If entry already exists, consider this a success (idempotent)
-	filter := fmt.Sprintf(`user_id="%s"&&draw_id="%s"`, userId, drawId)
-	existingEntries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 0, 0)
-	if err != nil {
-		return e.JSON(http.StatusInternalServerError, map[string]any{
-			"error":   "Failed to check for existing entries",
-			"details": err.Error(),
-		})
-	}
-
-	if len(existingEntries) > 0 {
-		return nil
-	}
-
-	// Create new user_draw_entry record
-	userDrawEntry, err := app.FindCollectionByNameOrId("user_draw_entry")
-	if err != nil {
-		return e.JSON(http.StatusInternalServerError, map[string]any{
-			"error":   "Failed to find user_draw_entry collection",
-			"details": err.Error(),
-		})
-	}
-
-	record := core.NewRecord(userDrawEntry)
-	record.Set("user_id", userId)
-	record.Set("draw_id", drawId)
-
-	if err := app.Save(record); err != nil {
-		return e.JSON(http.StatusInternalServerError, map[string]any{
-			"error":   fmt.Sprintf("Failed to save user_draw_entry record with user_id: %s and draw_id: %s", userId, drawId),
-			"details": err.Error(),
-		})
-	}
-
-	return nil
 }
 
 func validateDrawEntryTransactionCompletedPayload(payload PaddleDrawEntryTransaction) error {
