@@ -128,7 +128,7 @@ func TestSubscriptionActivatedWebhook(t *testing.T) {
 			Body:           strings.NewReader(mockPayloadStr),
 			ExpectedStatus: 200,
 			ExpectedContent: []string{
-				`"message":"Subscription added successfully"`,
+				`"message":"Subscription activated successfully"`,
 			},
 			TestAppFactory: setupTestApp,
 			BeforeTestFunc: checkBeforeNonExistent,
@@ -197,7 +197,7 @@ func TestSubscriptionActivatedValidation(t *testing.T) {
 			modifyFunc: func(p *PaddleSubscriptionActivated) {
 				p.EventType = "subscription.created"
 			},
-			expectedMsg: "invalid event_type. Expected subscription_activated, got subscription.created",
+			expectedMsg: "invalid event_type. Expected subscription.activated, got subscription.created",
 		},
 		{
 			name: "Missing user_id",

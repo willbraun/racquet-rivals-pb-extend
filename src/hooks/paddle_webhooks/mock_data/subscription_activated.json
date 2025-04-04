@@ -1,6 +1,6 @@
 {
 	"event_id": "evt_01hv8x29kz0t586xy6zn1a62zz",
-	"event_type": "subscription_activated",
+	"event_type": "subscription.activated",
 	"occurred_at": "2024-04-12T10:18:48.831Z",
 	"notification_id": "ntf_01hv8x29kz0t586xy6zn1a62aa",
 	"data": {

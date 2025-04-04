@@ -17,7 +17,7 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 			// Ensure the request is from Paddle
 			verifyWebhook := os.Getenv("SKIP_WEBHOOK_VERIFICATION") != "true"
 			if verifyWebhook {
-				webhookVerifier := paddle.NewWebhookVerifier(os.Getenv("DRAW_ENTRY_WEBHOOK_SECRET_KEY"))
+				webhookVerifier := paddle.NewWebhookVerifier(os.Getenv("SUBSCRIPTION_ACTIVATED_WEBHOOK_SECRET_KEY"))
 				_, err := webhookVerifier.Verify(e.Request)
 				if err != nil {
 					return e.JSON(http.StatusBadRequest, map[string]any{
@@ -107,7 +107,7 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 			}
 
 			return e.JSON(http.StatusOK, map[string]any{
-				"message": "Subscription added successfully",
+				"message": "Subscription activated successfully",
 			})
 		})
 
@@ -120,8 +120,8 @@ func validateSubscriptionActivatedPayload(payload PaddleSubscriptionActivated) e
 		return fmt.Errorf("missing event_id")
 	}
 
-	if payload.EventType != "subscription_activated" {
-		return fmt.Errorf("invalid event_type. Expected subscription_activated, got %s", payload.EventType)
+	if payload.EventType != "subscription.activated" {
+		return fmt.Errorf("invalid event_type. Expected subscription.activated, got %s", payload.EventType)
 	}
 
 	if payload.Data.CustomData.UserID == "" {
