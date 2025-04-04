@@ -52,8 +52,7 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 			}
 
 			// Validate the webhook payload
-			if err := validateWebhookPayload(requestBody); err != nil {
-				// Return a 400 Bad Request if validation fails
+			if err := validateDrawEntryTransactionCompletedPayload(requestBody); err != nil {
 				return e.JSON(http.StatusBadRequest, map[string]any{
 					"error":   "Invalid webhook payload format",
 					"details": err.Error(),
@@ -187,7 +186,7 @@ func createUserDrawEntryRecord(app core.App, e *core.RequestEvent, userId string
 	return nil
 }
 
-func validateWebhookPayload(payload PaddleDrawEntryTransaction) error {
+func validateDrawEntryTransactionCompletedPayload(payload PaddleDrawEntryTransaction) error {
 	if payload.EventID == "" {
 		return fmt.Errorf("missing event_id")
 	}

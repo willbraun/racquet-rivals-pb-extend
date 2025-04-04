@@ -188,6 +188,8 @@ type BillingPeriod struct {
 
 // Paddle subscription types
 
+type PaddleSubscriptionActivated = PaddleSubscription[SubscriptionActivatedCustomData]
+
 type PaddleSubscription[T any] struct {
 	EventID        string              `json:"event_id"`
 	EventType      string              `json:"event_type"`
@@ -225,6 +227,10 @@ type SubscriptionData[T any] struct {
 	ManagementURLs       ManagementURLs     `json:"management_urls"`
 	Discount             *any               `json:"discount"`
 	ImportMeta           *any               `json:"import_meta"`
+}
+
+type SubscriptionActivatedCustomData struct {
+	UserID string `json:"user_id"`
 }
 
 type SubscriptionItem struct {
