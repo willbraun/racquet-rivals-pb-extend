@@ -17,7 +17,7 @@ import (
 
 func TestSubscriptionActivatedWebhook(t *testing.T) {
 	// Load all mock data files for testing
-	mockDataPath := filepath.Join("mock_data", "subscription_activated.json")
+	mockDataPath := filepath.Join("testdata", "subscription_activated.json")
 
 	data, err := os.ReadFile(mockDataPath)
 	if err != nil {
@@ -168,7 +168,7 @@ func TestSubscriptionActivatedValidation(t *testing.T) {
 	}
 
 	// Load base mock data for modifications
-	mockDataPath := filepath.Join("mock_data", "subscription_activated.json")
+	mockDataPath := filepath.Join("testdata", "subscription_activated.json")
 	mockData, err := os.ReadFile(mockDataPath)
 	if err != nil {
 		t.Fatalf("Failed to read mock data: %v", err)

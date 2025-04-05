@@ -17,10 +17,10 @@ import (
 func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 	// Load all mock data files for testing
 	mockDataFiles := map[string]string{
-		"Men":          filepath.Join("mock_data", "mens_draw_entry.json"),
-		"Women":        filepath.Join("mock_data", "womens_draw_entry.json"),
-		"Both":         filepath.Join("mock_data", "both_draw_entry.json"),
-		"Subscription": filepath.Join("mock_data", "transaction_completed_subscription.json"),
+		"Men":          filepath.Join("testdata", "mens_draw_entry.json"),
+		"Women":        filepath.Join("testdata", "womens_draw_entry.json"),
+		"Both":         filepath.Join("testdata", "both_draw_entry.json"),
+		"Subscription": filepath.Join("testdata", "transaction_completed_subscription.json"),
 	}
 
 	mockDataStr := make(map[string]string)
@@ -255,7 +255,7 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 	}
 
 	// Load base mock data for modifications
-	mockDataPath := filepath.Join("mock_data", "mens_draw_entry.json")
+	mockDataPath := filepath.Join("testdata", "mens_draw_entry.json")
 	mockData, err := os.ReadFile(mockDataPath)
 	if err != nil {
 		t.Fatalf("Failed to read mock data: %v", err)
