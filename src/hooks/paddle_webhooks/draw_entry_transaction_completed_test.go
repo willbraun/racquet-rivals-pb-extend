@@ -17,9 +17,10 @@ import (
 func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 	// Load all mock data files for testing
 	mockDataFiles := map[string]string{
-		"Men":   filepath.Join("mock_data", "mens_draw_entry.json"),
-		"Women": filepath.Join("mock_data", "womens_draw_entry.json"),
-		"Both":  filepath.Join("mock_data", "both_draw_entry.json"),
+		"Men":          filepath.Join("mock_data", "mens_draw_entry.json"),
+		"Women":        filepath.Join("mock_data", "womens_draw_entry.json"),
+		"Both":         filepath.Join("mock_data", "both_draw_entry.json"),
+		"Subscription": filepath.Join("mock_data", "transaction_completed_subscription.json"),
 	}
 
 	mockDataStr := make(map[string]string)
@@ -105,6 +106,16 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 			assert.Equal(t, userId, entry.GetString("user_id"), "user_id should match webhook data")
 			assert.Equal(t, mensDrawId, entry.GetString("draw_id"), "draw_id should match webhook data")
 		}
+	}
+
+	checkMensEntryDoesNotExist := func(t testing.TB, app *tests.TestApp, res *http.Response) {
+		filter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, mensDrawId)
+		entries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 0, 0)
+		if err != nil {
+			t.Fatalf("Failed to check for existing entries: %v", err)
+		}
+
+		assert.Equal(t, 0, len(entries), "mens's user_draw_entry record should not exist after test")
 	}
 
 	checkMensEntryExists := func(t testing.TB, app *tests.TestApp, res *http.Response) {
@@ -209,6 +220,19 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 			TestAppFactory: setupTestAppWithExistingEntry,
 			BeforeTestFunc: checkBeforeExists,
 			AfterTestFunc:  checkMensEntryExists,
+		},
+		{
+			Name:           "Transaction completed for subscription should succeed without creating draw entry",
+			Method:         http.MethodPost,
+			URL:            "/webhook/draw-entry-transaction-completed",
+			Body:           strings.NewReader(mockDataStr["Subscription"]),
+			ExpectedStatus: 200,
+			ExpectedContent: []string{
+				`"message":"No action taken, subscription activation will be handled by the subscription.activated webhook."`,
+			},
+			TestAppFactory: setupTestApp,
+			BeforeTestFunc: checkBeforeNonExistent,
+			AfterTestFunc:  checkMensEntryDoesNotExist,
 		},
 	}
 

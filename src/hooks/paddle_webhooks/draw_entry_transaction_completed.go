@@ -12,9 +12,10 @@ import (
 )
 
 var productIDs = map[string]string{
-	"Men":   "pro_01jpkgny45pjrxh3nnb7nck2zv",
-	"Women": "pro_01jpkhe7h0se4fcr3bpf3cha1x",
-	"Both":  "pro_01jpkhhgn8qzpg0ry0yvgyqw8d",
+	"Men":          "pro_01jpkgny45pjrxh3nnb7nck2zv",
+	"Women":        "pro_01jpkhe7h0se4fcr3bpf3cha1x",
+	"Both":         "pro_01jpkhhgn8qzpg0ry0yvgyqw8d",
+	"Subscription": "pro_01jpkhsd61k1acva107vz6dj0v",
 }
 
 func RegisterDrawEntryTransactionCompletedHook(app core.App) {
@@ -56,6 +57,12 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 				return e.JSON(http.StatusBadRequest, map[string]any{
 					"error":   "Invalid webhook payload format",
 					"details": err.Error(),
+				})
+			}
+
+			if requestBody.Data.SubscriptionID != "" {
+				return e.JSON(http.StatusOK, map[string]any{
+					"message": "No action taken, subscription activation will be handled by the subscription.activated webhook.",
 				})
 			}
 
@@ -192,9 +199,10 @@ func validateDrawEntryTransactionCompletedPayload(payload PaddleDrawEntryTransac
 
 	validProductFound := false
 	validProductIDs := map[string]bool{
-		productIDs["Men"]:   true,
-		productIDs["Women"]: true,
-		productIDs["Both"]:  true,
+		productIDs["Men"]:          true,
+		productIDs["Women"]:        true,
+		productIDs["Both"]:         true,
+		productIDs["Subscription"]: true, // Subscription is valid for other webhooks but not for draw entry
 	}
 
 	for _, item := range payload.Data.Items {

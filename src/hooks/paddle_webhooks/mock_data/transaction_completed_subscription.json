@@ -1,0 +1,170 @@
+{
+	"event_id": "evt_example_001",
+	"event_type": "transaction.completed",
+	"occurred_at": "2024-04-12T10:18:50.155553Z",
+	"notification_id": "ntf_example_001",
+	"data": {
+		"id": "txn_example_001",
+		"items": [
+			{
+				"price": {
+					"id": "pri_01jpkhbsg58b1sznzg51r95j21",
+					"name": "Example Product",
+					"type": "standard",
+					"status": "active",
+					"quantity": {
+						"maximum": 100,
+						"minimum": 1
+					},
+					"tax_mode": "account_setting",
+					"created_at": "2024-03-01T12:00:00Z",
+					"product_id": "pro_01jpkhsd61k1acva107vz6dj0v",
+					"unit_price": {
+						"amount": "20",
+						"currency_code": "USD"
+					},
+					"updated_at": "2024-03-02T12:00:00Z",
+					"custom_data": null,
+					"description": "Example product description",
+					"import_meta": null,
+					"trial_period": null,
+					"billing_cycle": null,
+					"unit_price_overrides": []
+				},
+				"quantity": 1,
+				"proration": null
+			}
+		],
+		"origin": "web",
+		"status": "completed",
+		"details": {
+			"totals": {
+				"fee": "0",
+				"tax": "0",
+				"total": "20",
+				"credit": "0",
+				"balance": "0",
+				"discount": "0",
+				"earnings": "20",
+				"subtotal": "20",
+				"grand_total": "20",
+				"currency_code": "USD",
+				"credit_to_balance": "0"
+			},
+			"line_items": [
+				{
+					"id": "txnitm_example_001",
+					"totals": {
+						"tax": "0",
+						"total": "20",
+						"discount": "0",
+						"subtotal": "20"
+					},
+					"product": {
+						"id": "pro_01jpkhsd61k1acva107vz6dj0v",
+						"name": "Full Access",
+						"type": "standard",
+						"status": "active",
+						"image_url": "https://example.com/product.png",
+						"created_at": "2024-03-01T12:00:00Z",
+						"updated_at": "2024-03-02T12:00:00Z",
+						"custom_data": null,
+						"description": "Participation in a men's draw",
+						"import_meta": null,
+						"tax_category": "SaaS"
+					},
+					"price_id": "pri_01jpkhbsg58b1sznzg51r95j21",
+					"quantity": 1,
+					"tax_rate": "0",
+					"unit_totals": {
+						"tax": "0",
+						"total": "20",
+						"discount": "0",
+						"subtotal": "20"
+					}
+				}
+			],
+			"payout_totals": {
+				"fee": "0",
+				"tax": "0",
+				"total": "20",
+				"credit": "0",
+				"balance": "0",
+				"discount": "0",
+				"earnings": "20",
+				"subtotal": "20",
+				"grand_total": "20",
+				"currency_code": "USD",
+				"credit_to_balance": "0"
+			},
+			"tax_rates_used": [
+				{
+					"totals": {
+						"tax": "0",
+						"total": "20",
+						"discount": "0",
+						"subtotal": "20"
+					},
+					"tax_rate": "0"
+				}
+			],
+			"adjusted_totals": {
+				"fee": "0",
+				"tax": "0",
+				"total": "20",
+				"earnings": "20",
+				"subtotal": "20",
+				"grand_total": "20",
+				"currency_code": "USD"
+			}
+		},
+		"checkout": {
+			"url": "https://example.com/checkout?txn=txn_example_001"
+		},
+		"payments": [
+			{
+				"amount": "20",
+				"status": "captured",
+				"created_at": "2024-03-03T12:00:00Z",
+				"error_code": null,
+				"captured_at": "2024-03-03T12:00:05Z",
+				"method_details": {
+					"card": {
+						"type": "visa",
+						"last4": "1234",
+						"expiry_year": 2026,
+						"expiry_month": 12,
+						"cardholder_name": "John Doe"
+					},
+					"type": "card"
+				},
+				"payment_method_id": "paymtd_example_001",
+				"payment_attempt_id": "attempt_example_001",
+				"stored_payment_method_id": "stored_example_001"
+			}
+		],
+		"billed_at": "2024-03-03T12:00:05Z",
+		"address_id": "add_example_001",
+		"created_at": "2024-03-03T12:00:00Z",
+		"invoice_id": "inv_example_001",
+		"revised_at": null,
+		"updated_at": "2024-03-03T12:00:05Z",
+		"business_id": null,
+		"custom_data": {
+			"user_id": "2y5ysc47g9l6ebq",
+			"mens_draw_id": "k8cu111f35ic7jm",
+			"womens_draw_id": null
+		},
+		"customer_id": "ctm_example_001",
+		"discount_id": null,
+		"currency_code": "USD",
+		"billing_period": {
+			"ends_at": null,
+			"starts_at": null
+		},
+		"invoice_number": "INV-001",
+		"billing_details": null,
+		"collection_mode": "automatic",
+		"subscription_id": "sub_example_001"
+	}
+}
