@@ -22,8 +22,73 @@ func TestAccessEndpoint(t *testing.T) {
 	const testDrawId = "2l1hqqi8puodmjq"
 	const grandfatheredUserId = "rj8l4hni6tl4bas"
 	const subscribedUserId = "r8xmngx0sgau633"
+	const subscribedUserPastDueId = "un5y5qn29vt3711"
+	const subscribedUserCanceledId = "y0p92fy9oj66ab1"
 	const singleDrawUserId = "e425j00gwm5pi1h"
 	const noAccessUserId = "2y5ysc47g9l6ebq"
+
+	t.Run("Access is correct", func(t *testing.T) {
+		scenarios := []tests.ApiScenario{
+			{
+				Name:            "Grandfathered user access",
+				Method:          http.MethodGet,
+				Headers:         createAuthHeader("grandfathered_user", t),
+				URL:             "/access/" + grandfatheredUserId + "/" + testDrawId,
+				ExpectedStatus:  200,
+				ExpectedContent: []string{`"hasAccess":true`},
+				TestAppFactory:  setupTestApp,
+			},
+			{
+				Name:            "Subscribed user with active subscription has access",
+				Method:          http.MethodGet,
+				Headers:         createAuthHeader("subscribed_user", t),
+				URL:             "/access/" + subscribedUserId + "/" + testDrawId,
+				ExpectedStatus:  200,
+				ExpectedContent: []string{`"hasAccess":true`},
+				TestAppFactory:  setupTestApp,
+			},
+			{
+				Name:            "Subscribed user with past due subscription has access",
+				Method:          http.MethodGet,
+				Headers:         createAuthHeader("subscribed_user_past_due", t),
+				URL:             "/access/" + subscribedUserPastDueId + "/" + testDrawId,
+				ExpectedStatus:  200,
+				ExpectedContent: []string{`"hasAccess":true`},
+				TestAppFactory:  setupTestApp,
+			},
+			{
+				Name:            "Subscribed user with canceled subscription does not have access",
+				Method:          http.MethodGet,
+				Headers:         createAuthHeader("subscribed_user_canceled", t),
+				URL:             "/access/" + subscribedUserCanceledId + "/" + testDrawId,
+				ExpectedStatus:  200,
+				ExpectedContent: []string{`"hasAccess":false`},
+				TestAppFactory:  setupTestApp,
+			},
+			{
+				Name:            "User with draw entry access",
+				Method:          http.MethodGet,
+				Headers:         createAuthHeader("single_draw_user", t),
+				URL:             "/access/" + singleDrawUserId + "/" + testDrawId,
+				ExpectedStatus:  200,
+				ExpectedContent: []string{`"hasAccess":true`},
+				TestAppFactory:  setupTestApp,
+			},
+			{
+				Name:            "User with no access",
+				Method:          http.MethodGet,
+				Headers:         createAuthHeader("no_access_user", t),
+				URL:             "/access/" + noAccessUserId + "/" + testDrawId,
+				ExpectedStatus:  200,
+				ExpectedContent: []string{`"hasAccess":false`},
+				TestAppFactory:  setupTestApp,
+			},
+		}
+
+		for _, scenario := range scenarios {
+			scenario.Test(t)
+		}
+	})
 
 	t.Run("Throws expected exceptions", func(t *testing.T) {
 		scenarios := []tests.ApiScenario{
@@ -78,51 +143,6 @@ func TestAccessEndpoint(t *testing.T) {
 				URL:             "/access/" + grandfatheredUserId + "/%20",
 				ExpectedStatus:  400,
 				ExpectedContent: []string{`"error":"Must provide draw_id"`},
-				TestAppFactory:  setupTestApp,
-			},
-		}
-
-		for _, scenario := range scenarios {
-			scenario.Test(t)
-		}
-	})
-
-	t.Run("Access is correct", func(t *testing.T) {
-		scenarios := []tests.ApiScenario{
-			{
-				Name:            "Grandfathered user access",
-				Method:          http.MethodGet,
-				Headers:         createAuthHeader("grandfathered_user", t),
-				URL:             "/access/" + grandfatheredUserId + "/" + testDrawId,
-				ExpectedStatus:  200,
-				ExpectedContent: []string{`"hasAccess":true`},
-				TestAppFactory:  setupTestApp,
-			},
-			{
-				Name:            "Subscribed user access",
-				Method:          http.MethodGet,
-				Headers:         createAuthHeader("subscribed_user", t),
-				URL:             "/access/" + subscribedUserId + "/" + testDrawId,
-				ExpectedStatus:  200,
-				ExpectedContent: []string{`"hasAccess":true`},
-				TestAppFactory:  setupTestApp,
-			},
-			{
-				Name:            "User with draw entry access",
-				Method:          http.MethodGet,
-				Headers:         createAuthHeader("single_draw_user", t),
-				URL:             "/access/" + singleDrawUserId + "/" + testDrawId,
-				ExpectedStatus:  200,
-				ExpectedContent: []string{`"hasAccess":true`},
-				TestAppFactory:  setupTestApp,
-			},
-			{
-				Name:            "User with no access",
-				Method:          http.MethodGet,
-				Headers:         createAuthHeader("no_access_user", t),
-				URL:             "/access/" + noAccessUserId + "/" + testDrawId,
-				ExpectedStatus:  200,
-				ExpectedContent: []string{`"hasAccess":false`},
 				TestAppFactory:  setupTestApp,
 			},
 		}

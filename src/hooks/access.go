@@ -44,7 +44,7 @@ func RegisterAccessHook(app core.App) {
 				})
 			}
 
-			draw, err := app.FindRecordById("draw", drawId)
+			_, err = app.FindRecordById("draw", drawId)
 			if err != nil {
 				return e.JSON(http.StatusNotFound, map[string]any{
 					"error":   "Draw not found",
@@ -59,14 +59,29 @@ func RegisterAccessHook(app core.App) {
 				})
 			}
 
-			// Check if user has active subscription covering the draw date
-			drawStartDate := draw.GetDateTime("start_date")
-			subscriptionStartDate := user.GetDateTime("subscription_start_date")
-			subscriptionEndDate := user.GetDateTime("subscription_end_date")
+			// Check if user has active or past due subscription
+			// If payment fails, the status will be "past_due" and they still have access
+			// Paddle will enter the dunning process to recover the payment automatically
+			// After 30 days if the payment is not recovered, the status will change to "canceled"
+			subscriptionFilter := fmt.Sprintf(`user_id="%s"`, userId)
+			subscriptions, err := app.FindRecordsByFilter("subscription", subscriptionFilter, "", 1, 0)
+			if err != nil {
+				return e.JSON(http.StatusInternalServerError, map[string]any{
+					"error":   "Error checking subscription access",
+					"details": err.Error(),
+				})
+			}
 
-			if !subscriptionStartDate.IsZero() && !subscriptionEndDate.IsZero() {
-				if (drawStartDate.After(subscriptionStartDate) || drawStartDate.Equal(subscriptionStartDate)) &&
-					(drawStartDate.Before(subscriptionEndDate) || drawStartDate.Equal(subscriptionEndDate)) {
+			if len(subscriptions) > 1 {
+				return e.JSON(http.StatusInternalServerError, map[string]string{
+					"error": "Multiple subscriptions found for user",
+				})
+			}
+
+			if len(subscriptions) == 1 {
+				subscription := subscriptions[0]
+				status := subscription.GetString("status")
+				if status == "active" || status == "past_due" {
 					return e.JSON(http.StatusOK, map[string]any{
 						"hasAccess": true,
 					})
@@ -74,8 +89,8 @@ func RegisterAccessHook(app core.App) {
 			}
 
 			// Check if user has specifically paid for this draw
-			filter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, drawId)
-			entries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 1, 0)
+			drawEntryFilter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, drawId)
+			entries, err := app.FindRecordsByFilter("user_draw_entry", drawEntryFilter, "", 1, 0)
 			if err != nil {
 				return e.JSON(http.StatusInternalServerError, map[string]any{
 					"error":   "Error checking draw access",
