@@ -1,6 +1,6 @@
 {
 	"event_id": "evt_01hv8x29kz0t586xy6zn1a62zz",
-	"event_type": "subscription.activated",
+	"event_type": "subscription.updated",
 	"occurred_at": "2024-04-12T10:18:48.831Z",
 	"notification_id": "ntf_01hv8x29kz0t586xy6zn1a62aa",
 	"data": {
@@ -54,7 +54,7 @@
 				"previously_billed_at": "2024-04-12T10:18:47.635628Z"
 			}
 		],
-		"status": "active",
+		"status": "canceled",
 		"discount": null,
 		"paused_at": null,
 		"address_id": "add_01hv8gq3318ktkfengj2r75gfx",
@@ -63,9 +63,7 @@
 		"updated_at": "2024-04-12T10:18:48.831Z",
 		"business_id": null,
 		"canceled_at": null,
-		"custom_data": {
-			"user_id": "2y5ysc47g9l6ebq"
-		},
+		"custom_data": null,
 		"customer_id": "ctm_01hv6y1jedq4p1n0yqn5ba3ky4",
 		"import_meta": null,
 		"billing_cycle": {
@@ -79,8 +77,8 @@
 		"first_billed_at": "2024-04-12T10:18:47.635628Z",
 		"scheduled_change": null,
 		"current_billing_period": {
-			"ends_at": "2024-05-12T10:18:47.635628Z",
-			"starts_at": "2024-04-12T10:18:47.635628Z"
+			"ends_at": "2026-05-12T10:18:47.635628Z",
+			"starts_at": "2026-04-12T10:18:47.635628Z"
 		}
 	}
 }

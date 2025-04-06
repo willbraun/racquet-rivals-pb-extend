@@ -195,9 +195,9 @@ func TestSubscriptionActivatedValidation(t *testing.T) {
 		{
 			name: "Invalid event_type",
 			modifyFunc: func(p *PaddleSubscriptionActivated) {
-				p.EventType = "subscription.created"
+				p.EventType = "invalid.type"
 			},
-			expectedMsg: "invalid event_type. Expected subscription.activated, got subscription.created",
+			expectedMsg: "invalid event_type. Expected subscription.activated, got invalid.type",
 		},
 		{
 			name: "Missing user_id",
@@ -313,7 +313,7 @@ func TestSubscriptionActivatedValidation(t *testing.T) {
 		Body:           strings.NewReader(string(badUserWebhookStr)),
 		ExpectedStatus: 404,
 		ExpectedContent: []string{
-			`"error":"User with ID nonexistent_user_id not found"`,
+			`"error":"User with ID 'nonexistent_user_id' not found"`,
 		},
 		TestAppFactory: setupTestApp,
 	})

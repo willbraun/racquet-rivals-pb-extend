@@ -189,6 +189,7 @@ type BillingPeriod struct {
 // Paddle subscription types
 
 type PaddleSubscriptionActivated = PaddleSubscription[SubscriptionActivatedCustomData]
+type PaddleSubscriptionUpdated = PaddleSubscription[any]
 
 type PaddleSubscription[T any] struct {
 	EventID        string              `json:"event_id"`

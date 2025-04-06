@@ -58,7 +58,7 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 			_, err = app.FindRecordById("user", userId)
 			if err != nil {
 				return e.JSON(http.StatusNotFound, map[string]any{
-					"error":   fmt.Sprintf("User with ID %s not found", userId),
+					"error":   fmt.Sprintf("User with ID '%s' not found", userId),
 					"details": err.Error(),
 				})
 			}
@@ -101,7 +101,7 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 
 			if err := app.Save(record); err != nil {
 				return e.JSON(http.StatusInternalServerError, map[string]any{
-					"error":   fmt.Sprintf("Failed to save subscription record for user_id: %s and paddle_subscription_id: %s", userId, requestBody.Data.ID),
+					"error":   fmt.Sprintf("Failed to save new subscription record for user_id '%s' and paddle_subscription_id: '%s'", userId, requestBody.Data.ID),
 					"details": err.Error(),
 				})
 			}
