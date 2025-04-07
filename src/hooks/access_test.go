@@ -106,7 +106,7 @@ func TestAccessEndpoint(t *testing.T) {
 				Headers:         createAuthHeader("grandfathered_user", t),
 				URL:             "/access/" + subscribedUserId + "/" + testDrawId,
 				ExpectedStatus:  403,
-				ExpectedContent: []string{`"error":"You don't have permission to access subscribed_user's data"`},
+				ExpectedContent: []string{`{"data":{},"message":"You don't have permission to access subscribed_user's data.","status":403}`},
 				TestAppFactory:  setupTestApp,
 			},
 			{
@@ -115,7 +115,7 @@ func TestAccessEndpoint(t *testing.T) {
 				Headers:         createAuthHeader("grandfathered_user", t),
 				URL:             "/access/invalid_user_id/" + testDrawId,
 				ExpectedStatus:  404,
-				ExpectedContent: []string{`"error":"User not found"`},
+				ExpectedContent: []string{`{"data":{},"message":"User with ID 'invalid_user_id' not found.","status":404}`},
 				TestAppFactory:  setupTestApp,
 			},
 			{
@@ -124,7 +124,7 @@ func TestAccessEndpoint(t *testing.T) {
 				Headers:         createAuthHeader("grandfathered_user", t),
 				URL:             "/access/" + grandfatheredUserId + "/invalid_draw_id",
 				ExpectedStatus:  404,
-				ExpectedContent: []string{`"error":"Draw not found"`},
+				ExpectedContent: []string{`{"data":{},"message":"Draw with ID 'invalid_draw_id' not found.","status":404}`},
 				TestAppFactory:  setupTestApp,
 			},
 			{
@@ -133,7 +133,7 @@ func TestAccessEndpoint(t *testing.T) {
 				Headers:         createAuthHeader("grandfathered_user", t),
 				URL:             "/access/%20/" + testDrawId,
 				ExpectedStatus:  400,
-				ExpectedContent: []string{`"error":"Must provide user_id"`},
+				ExpectedContent: []string{`{"data":{},"message":"Must provide user_id.","status":400}`},
 				TestAppFactory:  setupTestApp,
 			},
 			{
@@ -142,7 +142,7 @@ func TestAccessEndpoint(t *testing.T) {
 				Headers:         createAuthHeader("grandfathered_user", t),
 				URL:             "/access/" + grandfatheredUserId + "/%20",
 				ExpectedStatus:  400,
-				ExpectedContent: []string{`"error":"Must provide draw_id"`},
+				ExpectedContent: []string{`{"data":{},"message":"Must provide draw_id.","status":400}`},
 				TestAppFactory:  setupTestApp,
 			},
 		}
