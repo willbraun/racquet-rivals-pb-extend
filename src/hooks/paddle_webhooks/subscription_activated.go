@@ -1,6 +1,7 @@
 package paddle_webhooks
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,10 +21,7 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 				webhookVerifier := paddle.NewWebhookVerifier(os.Getenv("SUBSCRIPTION_ACTIVATED_WEBHOOK_SECRET_KEY"))
 				_, err := webhookVerifier.Verify(e.Request)
 				if err != nil {
-					return e.JSON(http.StatusBadRequest, map[string]any{
-						"error":   "Invalid webhook signature",
-						"details": err.Error(),
-					})
+					return e.BadRequestError("Invalid webhook signature", nil)
 				}
 			}
 
@@ -31,46 +29,44 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 			defer e.Request.Body.Close()
 			bodyBytes, err := io.ReadAll(e.Request.Body)
 			if err != nil {
-				return e.JSON(http.StatusBadRequest, map[string]any{
-					"error":   "Failed to read request body",
-					"details": err.Error(),
-				})
+				return e.BadRequestError("Failed to read request body", nil)
 			}
 
 			var requestBody PaddleSubscriptionActivated
 			if err := json.Unmarshal(bodyBytes, &requestBody); err != nil {
-				return e.JSON(http.StatusBadRequest, map[string]any{
-					"error":   "Invalid JSON format",
-					"details": err.Error(),
-				})
+				return e.BadRequestError("Invalid JSON format", nil)
 			}
 
 			// Validate the webhook payload
 			if err := validateSubscriptionActivatedPayload(requestBody); err != nil {
-				return e.JSON(http.StatusBadRequest, map[string]any{
-					"error":   "Invalid webhook payload format",
-					"details": err.Error(),
-				})
+				return e.BadRequestError(fmt.Sprintf("Invalid webhook payload format: %s", err.Error()), nil)
 			}
 
 			// Get the user who activated the subscription
 			userId := requestBody.Data.CustomData.UserID
 			_, err = app.FindRecordById("user", userId)
 			if err != nil {
-				return e.JSON(http.StatusNotFound, map[string]any{
-					"error":   fmt.Sprintf("User with ID '%s' not found", userId),
-					"details": err.Error(),
-				})
+				if err == sql.ErrNoRows {
+					return e.NotFoundError(
+						fmt.Sprintf("User with ID '%s' not found", userId),
+						nil,
+					)
+				}
+
+				return e.InternalServerError(
+					fmt.Sprintf("Internal error finding user '%s'", userId),
+					err,
+				)
 			}
 
 			// If user already has an active subscription, do not create a new one
 			filter := fmt.Sprintf(`user_id="%s"`, userId)
 			existingSubscriptions, err := app.FindRecordsByFilter("subscription", filter, "", 0, 0)
 			if err != nil {
-				return e.JSON(http.StatusInternalServerError, map[string]any{
-					"error":   "Failed to check for existing entries",
-					"details": err.Error(),
-				})
+				return e.InternalServerError(
+					fmt.Sprintf("Internal error checking existing subscriptions for user '%s'", userId),
+					err,
+				)
 			}
 
 			if len(existingSubscriptions) > 0 {
@@ -86,10 +82,10 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 			// Create new subscription
 			subscription, err := app.FindCollectionByNameOrId("subscription")
 			if err != nil {
-				return e.JSON(http.StatusInternalServerError, map[string]any{
-					"error":   "Failed to find subscription collection",
-					"details": err.Error(),
-				})
+				return e.InternalServerError(
+					"Internal error finding subscription collection",
+					nil,
+				)
 			}
 
 			record := core.NewRecord(subscription)
@@ -100,10 +96,10 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 			record.Set("current_billing_period_end", requestBody.Data.CurrentBillingPeriod.EndsAt)
 
 			if err := app.Save(record); err != nil {
-				return e.JSON(http.StatusInternalServerError, map[string]any{
-					"error":   fmt.Sprintf("Failed to save new subscription record for user_id '%s' and paddle_subscription_id: '%s'", userId, requestBody.Data.ID),
-					"details": err.Error(),
-				})
+				return e.InternalServerError(
+					fmt.Sprintf("Failed to save new subscription record for user_id '%s' and paddle_subscription_id: '%s'", userId, requestBody.Data.ID),
+					nil,
+				)
 			}
 
 			return e.JSON(http.StatusOK, map[string]any{

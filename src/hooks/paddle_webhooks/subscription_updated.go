@@ -23,10 +23,7 @@ func RegisterSubscriptionUpdatedHook(app core.App) {
 				webhookVerifier := paddle.NewWebhookVerifier(os.Getenv("SUBSCRIPTION_UPDATED_WEBHOOK_SECRET_KEY"))
 				_, err := webhookVerifier.Verify(e.Request)
 				if err != nil {
-					return e.JSON(http.StatusBadRequest, map[string]any{
-						"error":   "Invalid webhook signature",
-						"details": err.Error(),
-					})
+					return e.BadRequestError("Invalid webhook signature", nil)
 				}
 			}
 
@@ -34,26 +31,17 @@ func RegisterSubscriptionUpdatedHook(app core.App) {
 			defer e.Request.Body.Close()
 			bodyBytes, err := io.ReadAll(e.Request.Body)
 			if err != nil {
-				return e.JSON(http.StatusBadRequest, map[string]any{
-					"error":   "Failed to read request body",
-					"details": err.Error(),
-				})
+				return e.BadRequestError("Failed to read request body", nil)
 			}
 
 			var requestBody PaddleSubscriptionUpdated
 			if err := json.Unmarshal(bodyBytes, &requestBody); err != nil {
-				return e.JSON(http.StatusBadRequest, map[string]any{
-					"error":   "Invalid JSON format",
-					"details": err.Error(),
-				})
+				return e.BadRequestError("Invalid JSON format", nil)
 			}
 
 			// Validate the webhook payload
 			if err := validateSubscriptionUpdatedPayload(requestBody); err != nil {
-				return e.JSON(http.StatusBadRequest, map[string]any{
-					"error":   "Invalid webhook payload format",
-					"details": err.Error(),
-				})
+				return e.BadRequestError(fmt.Sprintf("Invalid webhook payload format: %s", err.Error()), nil)
 			}
 
 			// Get the subscription record
@@ -62,15 +50,16 @@ func RegisterSubscriptionUpdatedHook(app core.App) {
 			record, err := app.FindFirstRecordByFilter("subscription", filter)
 			if err != nil {
 				if err == sql.ErrNoRows {
-					return e.JSON(http.StatusNotFound, map[string]any{
-						"error":   fmt.Sprintf("Subscription with paddle_subscription_id '%s' not found", paddleSubscriptionId),
-						"details": err.Error(),
-					})
+					return e.NotFoundError(
+						fmt.Sprintf("Subscription with paddle_subscription_id '%s' not found", paddleSubscriptionId),
+						nil,
+					)
 				}
-				return e.JSON(http.StatusInternalServerError, map[string]any{
-					"error":   "Failed to find subscription record",
-					"details": err.Error(),
-				})
+
+				return e.InternalServerError(
+					fmt.Sprintf("Internal error finding subscription record for paddle_subscription_id '%s'", paddleSubscriptionId),
+					nil,
+				)
 			}
 
 			userId := record.GetString("user_id")
@@ -81,10 +70,10 @@ func RegisterSubscriptionUpdatedHook(app core.App) {
 			record.Set("current_billing_period_end", requestBody.Data.CurrentBillingPeriod.EndsAt)
 
 			if err := app.Save(record); err != nil {
-				return e.JSON(http.StatusInternalServerError, map[string]any{
-					"error":   fmt.Sprintf("Failed to save subscription record update for user_id '%s' and paddle_subscription_id '%s'", userId, requestBody.Data.ID),
-					"details": err.Error(),
-				})
+				return e.InternalServerError(
+					fmt.Sprintf("Failed to save subscription record update for user_id '%s' and paddle_subscription_id '%s'", userId, requestBody.Data.ID),
+					nil,
+				)
 			}
 
 			return e.JSON(http.StatusOK, map[string]any{

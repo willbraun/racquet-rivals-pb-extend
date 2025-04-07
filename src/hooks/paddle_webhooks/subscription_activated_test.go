@@ -255,7 +255,7 @@ func TestSubscriptionActivatedValidation(t *testing.T) {
 			Body:           strings.NewReader("{}"),
 			ExpectedStatus: 400,
 			ExpectedContent: []string{
-				`"error":"Invalid webhook payload format"`,
+				`{"data":{},"message":"Invalid webhook payload format: missing event_id.","status":400}`,
 			},
 			TestAppFactory: setupTestApp,
 		},
@@ -266,7 +266,7 @@ func TestSubscriptionActivatedValidation(t *testing.T) {
 			Body:           strings.NewReader("{invalid-json"),
 			ExpectedStatus: 400,
 			ExpectedContent: []string{
-				`"error":"Invalid JSON format"`,
+				`{"data":{},"message":"Invalid JSON format.","status":400}`,
 			},
 			TestAppFactory: setupTestApp,
 		},
@@ -289,8 +289,7 @@ func TestSubscriptionActivatedValidation(t *testing.T) {
 			Body:           strings.NewReader(string(testWebhookStr)),
 			ExpectedStatus: 400,
 			ExpectedContent: []string{
-				fmt.Sprintf(`"details":"%s"`, tc.expectedMsg),
-				`"error":"Invalid webhook payload format"`,
+				fmt.Sprintf(`{"data":{},"message":"Invalid webhook payload format: %s.","status":400}`, tc.expectedMsg),
 			},
 			TestAppFactory: setupTestApp,
 		}
@@ -313,7 +312,7 @@ func TestSubscriptionActivatedValidation(t *testing.T) {
 		Body:           strings.NewReader(string(badUserWebhookStr)),
 		ExpectedStatus: 404,
 		ExpectedContent: []string{
-			`"error":"User with ID 'nonexistent_user_id' not found"`,
+			`{"data":{},"message":"User with ID 'nonexistent_user_id' not found.","status":404}`,
 		},
 		TestAppFactory: setupTestApp,
 	})

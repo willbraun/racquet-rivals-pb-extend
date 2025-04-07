@@ -145,8 +145,7 @@ func TestSubscriptionUpdatedWebhook(t *testing.T) {
 			Body:           strings.NewReader(mockPayloadStr),
 			ExpectedStatus: 404,
 			ExpectedContent: []string{
-				`"error":"Subscription with paddle_subscription_id '`,
-				`not found"`,
+				`{"data":{},"message":"Subscription with paddle_subscription_id 'sub_example_paddle_subscription_id' not found.","status":404}`,
 			},
 			TestAppFactory: setupTestAppWithoutSubscription,
 		},
@@ -228,23 +227,23 @@ func TestSubscriptionUpdatedValidation(t *testing.T) {
 	scenarios = append(scenarios, []tests.ApiScenario{
 		{
 			Name:           "Bad request - empty body",
-			Method:         http.MethodPost, // Changed from POST to PATCH
+			Method:         http.MethodPost,
 			URL:            "/webhook/subscription-updated",
 			Body:           strings.NewReader("{}"),
 			ExpectedStatus: 400,
 			ExpectedContent: []string{
-				`"error":"Invalid webhook payload format"`,
+				`{"data":{},"message":"Invalid webhook payload format: missing event_id.","status":400}`,
 			},
 			TestAppFactory: setupTestApp,
 		},
 		{
 			Name:           "Invalid JSON",
-			Method:         http.MethodPost, // Changed from POST to PATCH
+			Method:         http.MethodPost,
 			URL:            "/webhook/subscription-updated",
 			Body:           strings.NewReader("{invalid-json"),
 			ExpectedStatus: 400,
 			ExpectedContent: []string{
-				`"error":"Invalid JSON format"`,
+				`{"data":{},"message":"Invalid JSON format.","status":400}`,
 			},
 			TestAppFactory: setupTestApp,
 		},
@@ -262,13 +261,12 @@ func TestSubscriptionUpdatedValidation(t *testing.T) {
 
 		scenario := tests.ApiScenario{
 			Name:           tc.name,
-			Method:         http.MethodPost, // Changed from POST to PATCH
+			Method:         http.MethodPost,
 			URL:            "/webhook/subscription-updated",
 			Body:           strings.NewReader(string(testWebhookStr)),
 			ExpectedStatus: 400,
 			ExpectedContent: []string{
-				fmt.Sprintf(`"details":"%s"`, tc.expectedMsg),
-				`"error":"Invalid webhook payload format"`,
+				fmt.Sprintf(`{"data":{},"message":"Invalid webhook payload format: %s.","status":400}`, tc.expectedMsg),
 			},
 			TestAppFactory: setupTestApp,
 		}
