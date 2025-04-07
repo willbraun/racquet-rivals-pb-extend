@@ -1,6 +1,7 @@
 package paddle_webhooks
 
 import (
+	"database/sql"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -27,10 +28,7 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 				webhookVerifier := paddle.NewWebhookVerifier(os.Getenv("DRAW_ENTRY_WEBHOOK_SECRET_KEY"))
 				_, err := webhookVerifier.Verify(e.Request)
 				if err != nil {
-					return e.JSON(http.StatusBadRequest, map[string]any{
-						"error":   "Invalid webhook signature",
-						"details": err.Error(),
-					})
+					return e.BadRequestError("Invalid webhook signature", nil)
 				}
 			}
 
@@ -38,26 +36,17 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 			defer e.Request.Body.Close()
 			bodyBytes, err := io.ReadAll(e.Request.Body)
 			if err != nil {
-				return e.JSON(http.StatusBadRequest, map[string]any{
-					"error":   "Failed to read request body",
-					"details": err.Error(),
-				})
+				return e.BadRequestError("Failed to read request body", nil)
 			}
 
 			var requestBody PaddleDrawEntryTransaction
 			if err := json.Unmarshal(bodyBytes, &requestBody); err != nil {
-				return e.JSON(http.StatusBadRequest, map[string]any{
-					"error":   "Invalid JSON format",
-					"details": err.Error(),
-				})
+				return e.BadRequestError("Invalid JSON format", nil)
 			}
 
 			// Validate the webhook payload
 			if err := validateDrawEntryTransactionCompletedPayload(requestBody); err != nil {
-				return e.JSON(http.StatusBadRequest, map[string]any{
-					"error":   "Invalid webhook payload format",
-					"details": err.Error(),
-				})
+				return e.BadRequestError(fmt.Sprintf("Invalid webhook payload format: %s", err.Error()), nil)
 			}
 
 			if requestBody.Data.SubscriptionID != "" {
@@ -70,19 +59,17 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 			userId := requestBody.Data.CustomData.UserID
 			_, err = app.FindRecordById("user", userId)
 			if err != nil {
-				return e.JSON(http.StatusNotFound, map[string]any{
-					"error":   fmt.Sprintf("User with ID %s not found", userId),
-					"details": err.Error(),
-				})
+				return e.NotFoundError(
+					fmt.Sprintf("User with ID '%s' not found", userId),
+					nil,
+				)
 			}
 
 			// Get the product purchased (Men, Women, or Both)
 			transactionItems := requestBody.Data.Items
 
 			if len(transactionItems) == 0 {
-				return e.JSON(http.StatusBadRequest, map[string]any{
-					"error": "No valid products found in transaction",
-				})
+				return e.BadRequestError("No valid products found in transaction", nil)
 			}
 
 			// Determine which draws to give access to
@@ -107,41 +94,42 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 				switch drawType {
 				case "Men":
 					if requestBody.Data.CustomData.MensDrawID == nil {
-						return e.JSON(http.StatusBadRequest, map[string]any{
-							"error": "Men's draw ID is required for men's product",
-						})
+						return e.BadRequestError("Men's draw ID is required for men's product", nil)
 					}
 					drawId = *requestBody.Data.CustomData.MensDrawID
 				case "Women":
 					if requestBody.Data.CustomData.WomensDrawID == nil {
-						return e.JSON(http.StatusBadRequest, map[string]any{
-							"error": "Women's draw ID is required for women's product",
-						})
+						return e.BadRequestError("Women's draw ID is required for women's product", nil)
 					}
 					drawId = *requestBody.Data.CustomData.WomensDrawID
 				default:
-					return e.JSON(http.StatusBadRequest, map[string]any{
-						"error": fmt.Sprintf("Invalid draw type: %s", drawType),
-					})
+					return e.BadRequestError(fmt.Sprintf("Invalid draw type: %s", drawType), nil)
 				}
 
 				// Validate that the draw exists
 				_, err := app.FindRecordById("draw", drawId)
 				if err != nil {
-					return e.JSON(http.StatusNotFound, map[string]any{
-						"error":   fmt.Sprintf("%s's draw with ID %s not found", drawType, drawId),
-						"details": err.Error(),
-					})
+					if err == sql.ErrNoRows {
+						return e.NotFoundError(
+							fmt.Sprintf("Draw with ID '%s' not found", drawId),
+							nil,
+						)
+					}
+
+					return e.InternalServerError(
+						fmt.Sprintf("Internal error finding draw '%s'", drawId),
+						nil,
+					)
 				}
 
 				// If entry already exists, consider this a success (idempotent)
 				filter := fmt.Sprintf(`user_id="%s"&&draw_id="%s"`, userId, drawId)
 				existingEntries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 0, 0)
 				if err != nil {
-					return e.JSON(http.StatusInternalServerError, map[string]any{
-						"error":   "Failed to check for existing entries",
-						"details": err.Error(),
-					})
+					return e.InternalServerError(
+						fmt.Sprintf("Internal error checking existing draw entries for user '%s' and draw '%s'", userId, drawId),
+						nil,
+					)
 				}
 
 				if len(existingEntries) > 0 {
@@ -153,10 +141,10 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 				// Create new user_draw_entry record
 				userDrawEntry, err := app.FindCollectionByNameOrId("user_draw_entry")
 				if err != nil {
-					return e.JSON(http.StatusInternalServerError, map[string]any{
-						"error":   "Failed to find user_draw_entry collection",
-						"details": err.Error(),
-					})
+					return e.InternalServerError(
+						"Failed to find user_draw_entry collection",
+						nil,
+					)
 				}
 
 				record := core.NewRecord(userDrawEntry)
@@ -164,10 +152,10 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 				record.Set("draw_id", drawId)
 
 				if err := app.Save(record); err != nil {
-					return e.JSON(http.StatusInternalServerError, map[string]any{
-						"error":   fmt.Sprintf("Failed to save user_draw_entry record with user_id: %s and draw_id: %s", userId, drawId),
-						"details": err.Error(),
-					})
+					return e.InternalServerError(
+						fmt.Sprintf("Failed to save user_draw_entry record with user_id: %s and draw_id: %s", userId, drawId),
+						nil,
+					)
 				}
 			}
 

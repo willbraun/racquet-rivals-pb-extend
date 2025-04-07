@@ -351,32 +351,6 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 	// Create API scenarios for each test case
 	var scenarios []tests.ApiScenario
 
-	// Add the basic cases
-	scenarios = append(scenarios, []tests.ApiScenario{
-		{
-			Name:           "Bad request - empty body",
-			Method:         http.MethodPost,
-			URL:            "/webhook/draw-entry-transaction-completed",
-			Body:           strings.NewReader("{}"),
-			ExpectedStatus: 400,
-			ExpectedContent: []string{
-				`"error":"Invalid webhook payload format"`,
-			},
-			TestAppFactory: setupTestApp,
-		},
-		{
-			Name:           "Invalid JSON",
-			Method:         http.MethodPost,
-			URL:            "/webhook/draw-entry-transaction-completed",
-			Body:           strings.NewReader("{invalid-json"),
-			ExpectedStatus: 400,
-			ExpectedContent: []string{
-				`"error":"Invalid JSON format"`,
-			},
-			TestAppFactory: setupTestApp,
-		},
-	}...)
-
 	// Then add test cases for each validation case
 	for _, tc := range testCases {
 		testWebhook := PaddleDrawEntryTransaction{}
@@ -394,14 +368,39 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 			Body:           strings.NewReader(string(testWebhookStr)),
 			ExpectedStatus: 400,
 			ExpectedContent: []string{
-				fmt.Sprintf(`"details":"%s"`, tc.expectedMsg),
-				`"error":"Invalid webhook payload format"`,
+				fmt.Sprintf(`{"data":{},"message":"Invalid webhook payload format: %s.","status":400}`, tc.expectedMsg),
 			},
 			TestAppFactory: setupTestApp,
 		}
 
 		scenarios = append(scenarios, scenario)
 	}
+
+	// Add the basic cases
+	scenarios = append(scenarios, []tests.ApiScenario{
+		{
+			Name:           "Bad request - empty body",
+			Method:         http.MethodPost,
+			URL:            "/webhook/draw-entry-transaction-completed",
+			Body:           strings.NewReader("{}"),
+			ExpectedStatus: 400,
+			ExpectedContent: []string{
+				`{"data":{},"message":"Invalid webhook payload format: missing event_id.","status":400}`,
+			},
+			TestAppFactory: setupTestApp,
+		},
+		{
+			Name:           "Invalid JSON",
+			Method:         http.MethodPost,
+			URL:            "/webhook/draw-entry-transaction-completed",
+			Body:           strings.NewReader("{invalid-json"),
+			ExpectedStatus: 400,
+			ExpectedContent: []string{
+				`{"data":{},"message":"Invalid JSON format.","status":400}`,
+			},
+			TestAppFactory: setupTestApp,
+		},
+	}...)
 
 	for _, scenario := range scenarios {
 		scenario.Test(t)

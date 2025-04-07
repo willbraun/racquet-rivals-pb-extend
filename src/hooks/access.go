@@ -32,9 +32,7 @@ func RegisterAccessHook(app core.App) {
 				}
 
 				return e.InternalServerError(
-					"Error finding user",
-					fmt.Sprintf("Error finding user '%s': %s", userId, err.Error()),
-				)
+					fmt.Sprintf("Internal error finding user '%s'", userId), nil)
 			}
 
 			requestedUsername := user.GetString("username")
@@ -56,8 +54,8 @@ func RegisterAccessHook(app core.App) {
 				}
 
 				return e.InternalServerError(
-					"Error finding draw",
-					fmt.Sprintf("Error finding draw '%s': %s", drawId, err.Error()),
+					fmt.Sprintf("Internal error finding draw '%s'", drawId),
+					nil,
 				)
 			}
 
@@ -75,11 +73,11 @@ func RegisterAccessHook(app core.App) {
 			subscriptionFilter := fmt.Sprintf(`user_id="%s"`, userId)
 			subscriptions, err := app.FindRecordsByFilter("subscription", subscriptionFilter, "", 1, 0)
 			if err != nil {
-				return e.InternalServerError("Error checking subscription access", err.Error())
+				return e.InternalServerError("Internal error checking subscription access", nil)
 			}
 
 			if len(subscriptions) > 1 {
-				return e.InternalServerError("Multiple subscriptions found for user", fmt.Sprintf("found %d subscriptions for user '%s'", len(subscriptions), userId))
+				return e.InternalServerError(fmt.Sprintf("Found %d subscriptions for user '%s', expected one", len(subscriptions), userId), nil)
 			}
 
 			if len(subscriptions) == 1 {
@@ -96,7 +94,7 @@ func RegisterAccessHook(app core.App) {
 			drawEntryFilter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, drawId)
 			entries, err := app.FindRecordsByFilter("user_draw_entry", drawEntryFilter, "", 1, 0)
 			if err != nil {
-				return e.InternalServerError("Error checking draw access", err.Error())
+				return e.InternalServerError("Internal error checking draw access", nil)
 			}
 
 			if len(entries) > 0 {
