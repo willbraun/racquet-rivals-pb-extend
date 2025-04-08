@@ -21,14 +21,22 @@ var productIDs = map[string]string{
 
 func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
-		se.Router.POST("/webhook/draw-entry-transaction-completed", func(e *core.RequestEvent) error {
+		route := "/webhook/draw-entry-transaction-completed"
+		se.Router.POST(route, func(e *core.RequestEvent) error {
 			// Ensure the request is from Paddle
 			verifyWebhook := os.Getenv("SKIP_WEBHOOK_VERIFICATION") != "true"
 			if verifyWebhook {
 				webhookVerifier := paddle.NewWebhookVerifier(os.Getenv("DRAW_ENTRY_WEBHOOK_SECRET_KEY"))
 				_, err := webhookVerifier.Verify(e.Request)
 				if err != nil {
-					return e.BadRequestError("Invalid webhook signature", nil)
+					return HandleWebhookError(WebhookErrorContext{
+						App:        app,
+						Event:      e,
+						StatusCode: 400,
+						Route:      route,
+						Message:    "Invalid webhook signature",
+						Error:      err,
+					})
 				}
 			}
 
@@ -36,17 +44,42 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 			defer e.Request.Body.Close()
 			bodyBytes, err := io.ReadAll(e.Request.Body)
 			if err != nil {
-				return e.BadRequestError("Failed to read request body", nil)
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       400,
+					Route:            route,
+					Message:          "Failed to read request body",
+					RequestBodyBytes: nil,
+					Error:            err,
+				})
 			}
 
 			var requestBody PaddleDrawEntryTransaction
 			if err := json.Unmarshal(bodyBytes, &requestBody); err != nil {
-				return e.BadRequestError("Invalid JSON format", nil)
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       400,
+					Route:            route,
+					Message:          "Invalid JSON format",
+					RequestBodyBytes: bodyBytes,
+					Error:            err,
+				})
 			}
 
 			// Validate the webhook payload
 			if err := validateDrawEntryTransactionCompletedPayload(requestBody); err != nil {
-				return e.BadRequestError(fmt.Sprintf("Invalid webhook payload format: %s", err.Error()), nil)
+				message := fmt.Sprintf("Invalid webhook payload format: %s", err.Error())
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       400,
+					Route:            route,
+					Message:          message,
+					RequestBodyBytes: bodyBytes,
+					Error:            err,
+				})
 			}
 
 			if requestBody.Data.SubscriptionID != "" {
@@ -59,17 +92,32 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 			userId := requestBody.Data.CustomData.UserID
 			_, err = app.FindRecordById("user", userId)
 			if err != nil {
-				return e.NotFoundError(
-					fmt.Sprintf("User with ID '%s' not found", userId),
-					nil,
-				)
+				message := fmt.Sprintf("User with ID '%s' not found", userId)
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       404,
+					Route:            route,
+					Message:          message,
+					RequestBodyBytes: bodyBytes,
+					Error:            err,
+				})
 			}
 
 			// Get the product purchased (Men, Women, or Both)
 			transactionItems := requestBody.Data.Items
 
 			if len(transactionItems) == 0 {
-				return e.BadRequestError("No valid products found in transaction", nil)
+				message := "No valid products found in transaction"
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       400,
+					Route:            route,
+					Message:          message,
+					RequestBodyBytes: bodyBytes,
+					Error:            fmt.Errorf("no products"),
+				})
 			}
 
 			// Determine which draws to give access to
@@ -94,42 +142,87 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 				switch drawType {
 				case "Men":
 					if requestBody.Data.CustomData.MensDrawID == nil {
-						return e.BadRequestError("Men's draw ID is required for men's product", nil)
+						message := "Men's draw ID is required for men's product"
+						return HandleWebhookError(WebhookErrorContext{
+							App:              app,
+							Event:            e,
+							StatusCode:       400,
+							Route:            route,
+							Message:          message,
+							RequestBodyBytes: bodyBytes,
+							Error:            fmt.Errorf("missing mens_draw_id"),
+						})
 					}
 					drawId = *requestBody.Data.CustomData.MensDrawID
 				case "Women":
 					if requestBody.Data.CustomData.WomensDrawID == nil {
-						return e.BadRequestError("Women's draw ID is required for women's product", nil)
+						message := "Women's draw ID is required for women's product"
+						return HandleWebhookError(WebhookErrorContext{
+							App:              app,
+							Event:            e,
+							StatusCode:       400,
+							Route:            route,
+							Message:          message,
+							RequestBodyBytes: bodyBytes,
+							Error:            fmt.Errorf("missing womens_draw_id"),
+						})
 					}
 					drawId = *requestBody.Data.CustomData.WomensDrawID
 				default:
-					return e.BadRequestError(fmt.Sprintf("Invalid draw type: %s", drawType), nil)
+					message := fmt.Sprintf("Invalid draw type: %s", drawType)
+					return HandleWebhookError(WebhookErrorContext{
+						App:              app,
+						Event:            e,
+						StatusCode:       400,
+						Route:            route,
+						Message:          message,
+						RequestBodyBytes: bodyBytes,
+						Error:            fmt.Errorf("invalid draw type"),
+					})
 				}
 
 				// Validate that the draw exists
 				_, err := app.FindRecordById("draw", drawId)
 				if err != nil {
 					if err == sql.ErrNoRows {
-						return e.NotFoundError(
-							fmt.Sprintf("Draw with ID '%s' not found", drawId),
-							nil,
-						)
+						message := fmt.Sprintf("Draw with ID '%s' not found", drawId)
+						return HandleWebhookError(WebhookErrorContext{
+							App:              app,
+							Event:            e,
+							StatusCode:       404,
+							Route:            route,
+							Message:          message,
+							RequestBodyBytes: bodyBytes,
+							Error:            err,
+						})
 					}
 
-					return e.InternalServerError(
-						fmt.Sprintf("Internal error finding draw '%s'", drawId),
-						nil,
-					)
+					message := fmt.Sprintf("Internal error finding draw '%s'", drawId)
+					return HandleWebhookError(WebhookErrorContext{
+						App:              app,
+						Event:            e,
+						StatusCode:       500,
+						Route:            route,
+						Message:          message,
+						RequestBodyBytes: bodyBytes,
+						Error:            err,
+					})
 				}
 
 				// If entry already exists, consider this a success (idempotent)
 				filter := fmt.Sprintf(`user_id="%s"&&draw_id="%s"`, userId, drawId)
 				existingEntries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 0, 0)
 				if err != nil {
-					return e.InternalServerError(
-						fmt.Sprintf("Internal error checking existing draw entries for user '%s' and draw '%s'", userId, drawId),
-						nil,
-					)
+					message := fmt.Sprintf("Internal error checking existing draw entries for user '%s' and draw '%s'", userId, drawId)
+					return HandleWebhookError(WebhookErrorContext{
+						App:              app,
+						Event:            e,
+						StatusCode:       500,
+						Route:            route,
+						Message:          message,
+						RequestBodyBytes: bodyBytes,
+						Error:            err,
+					})
 				}
 
 				if len(existingEntries) > 0 {
@@ -141,10 +234,16 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 				// Create new user_draw_entry record
 				userDrawEntry, err := app.FindCollectionByNameOrId("user_draw_entry")
 				if err != nil {
-					return e.InternalServerError(
-						"Failed to find user_draw_entry collection",
-						nil,
-					)
+					message := "Failed to find user_draw_entry collection"
+					return HandleWebhookError(WebhookErrorContext{
+						App:              app,
+						Event:            e,
+						StatusCode:       500,
+						Route:            route,
+						Message:          message,
+						RequestBodyBytes: bodyBytes,
+						Error:            err,
+					})
 				}
 
 				record := core.NewRecord(userDrawEntry)
@@ -152,10 +251,16 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 				record.Set("draw_id", drawId)
 
 				if err := app.Save(record); err != nil {
-					return e.InternalServerError(
-						fmt.Sprintf("Failed to save user_draw_entry record with user_id: %s and draw_id: %s", userId, drawId),
-						nil,
-					)
+					message := fmt.Sprintf("Failed to save user_draw_entry record with user_id: %s and draw_id: %s", userId, drawId)
+					return HandleWebhookError(WebhookErrorContext{
+						App:              app,
+						Event:            e,
+						StatusCode:       500,
+						Route:            route,
+						Message:          message,
+						RequestBodyBytes: bodyBytes,
+						Error:            err,
+					})
 				}
 			}
 
