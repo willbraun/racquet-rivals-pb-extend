@@ -38,8 +38,6 @@ func HandleWebhookError(ctx WebhookErrorContext) *router.ApiError {
 	return ctx.Event.InternalServerError(ctx.Message, nil)
 }
 
-// NotifySelfWebhookFailure sends an email notification about webhook handling failures
-// with strongly typed request body
 func NotifySelfWebhookFailure(ctx WebhookErrorContext) {
 	message := &mailer.Message{
 		From: mail.Address{
