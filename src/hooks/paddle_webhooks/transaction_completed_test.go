@@ -111,7 +111,7 @@ func TestTransactionCompletedWebhook(t *testing.T) {
 		}
 	}
 
-	checkMensEntryDoesNotExist := func(t testing.TB, app *tests.TestApp, res *http.Response) {
+	checkMensEntryDoesNotExist := func(t testing.TB, app *tests.TestApp) {
 		filter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, mensDrawId)
 		entries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 0, 0)
 		if err != nil {
@@ -121,7 +121,7 @@ func TestTransactionCompletedWebhook(t *testing.T) {
 		assert.Equal(t, 0, len(entries), "mens's user_draw_entry record should not exist after test")
 	}
 
-	checkMensEntryExists := func(t testing.TB, app *tests.TestApp, res *http.Response) {
+	checkMensEntryExists := func(t testing.TB, app *tests.TestApp) {
 		filter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, mensDrawId)
 		entries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 0, 0)
 		if err != nil {
@@ -137,7 +137,7 @@ func TestTransactionCompletedWebhook(t *testing.T) {
 		}
 	}
 
-	checkWomensEntryExists := func(t testing.TB, app *tests.TestApp, res *http.Response) {
+	checkWomensEntryExists := func(t testing.TB, app *tests.TestApp) {
 		filter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, womensDrawId)
 		entries, err := app.FindRecordsByFilter("user_draw_entry", filter, "", 0, 0)
 		if err != nil {
@@ -153,7 +153,7 @@ func TestTransactionCompletedWebhook(t *testing.T) {
 		}
 	}
 
-	checkBothEntriesExist := func(t testing.TB, app *tests.TestApp, res *http.Response) {
+	checkBothEntriesExist := func(t testing.TB, app *tests.TestApp) {
 		// Check men's entry
 		mensFilter := fmt.Sprintf(`user_id="%s" && draw_id="%s"`, userId, mensDrawId)
 		mensEntries, err := app.FindRecordsByFilter("user_draw_entry", mensFilter, "", 0, 0)
@@ -171,7 +171,7 @@ func TestTransactionCompletedWebhook(t *testing.T) {
 		assert.Equal(t, 1, len(womensEntries), "women's user_draw_entry record should exist after adding both draws")
 	}
 
-	checkCustomerIdSet := func(t testing.TB, app *tests.TestApp, res *http.Response) {
+	checkCustomerIdSet := func(t testing.TB, app *tests.TestApp) {
 		user, err := app.FindRecordById("user", userId)
 		if err != nil {
 			t.Fatalf("Failed to find user record: %v", err)
@@ -194,8 +194,8 @@ func TestTransactionCompletedWebhook(t *testing.T) {
 			TestAppFactory: setupTestApp,
 			BeforeTestFunc: checkBeforeNonExistent,
 			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
-				checkMensEntryExists(t, app, res)
-				checkCustomerIdSet(t, app, res)
+				checkMensEntryExists(t, app)
+				checkCustomerIdSet(t, app)
 			},
 		},
 		{
@@ -210,8 +210,8 @@ func TestTransactionCompletedWebhook(t *testing.T) {
 			TestAppFactory: setupTestApp,
 			BeforeTestFunc: checkBeforeNonExistent,
 			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
-				checkWomensEntryExists(t, app, res)
-				checkCustomerIdSet(t, app, res)
+				checkWomensEntryExists(t, app)
+				checkCustomerIdSet(t, app)
 			},
 		},
 		{
@@ -226,8 +226,8 @@ func TestTransactionCompletedWebhook(t *testing.T) {
 			TestAppFactory: setupTestApp,
 			BeforeTestFunc: checkBeforeNonExistent,
 			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
-				checkBothEntriesExist(t, app, res)
-				checkCustomerIdSet(t, app, res)
+				checkBothEntriesExist(t, app)
+				checkCustomerIdSet(t, app)
 			},
 		},
 		{
@@ -242,8 +242,8 @@ func TestTransactionCompletedWebhook(t *testing.T) {
 			TestAppFactory: setupTestAppWithExistingEntry,
 			BeforeTestFunc: checkBeforeExists,
 			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
-				checkMensEntryExists(t, app, res)
-				checkCustomerIdSet(t, app, res)
+				checkMensEntryExists(t, app)
+				checkCustomerIdSet(t, app)
 			},
 		},
 		{
@@ -258,8 +258,8 @@ func TestTransactionCompletedWebhook(t *testing.T) {
 			TestAppFactory: setupTestApp,
 			BeforeTestFunc: checkBeforeNonExistent,
 			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
-				checkMensEntryDoesNotExist(t, app, res)
-				checkCustomerIdSet(t, app, res)
+				checkMensEntryDoesNotExist(t, app)
+				checkCustomerIdSet(t, app)
 			},
 		},
 	}
