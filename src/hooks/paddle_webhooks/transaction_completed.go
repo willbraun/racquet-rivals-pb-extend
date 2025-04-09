@@ -19,14 +19,14 @@ var productIDs = map[string]string{
 	"Subscription": "pro_01jpkhsd61k1acva107vz6dj0v",
 }
 
-func RegisterDrawEntryTransactionCompletedHook(app core.App) {
+func RegisterTransactionCompletedHook(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
-		route := "/webhook/draw-entry-transaction-completed"
+		route := "/webhook/transaction-completed"
 		se.Router.POST(route, func(e *core.RequestEvent) error {
 			// Ensure the request is from Paddle
 			verifyWebhook := os.Getenv("SKIP_WEBHOOK_VERIFICATION") != "true"
 			if verifyWebhook {
-				webhookVerifier := paddle.NewWebhookVerifier(os.Getenv("DRAW_ENTRY_WEBHOOK_SECRET_KEY"))
+				webhookVerifier := paddle.NewWebhookVerifier(os.Getenv("TRANSACTION_COMPLETED_WEBHOOK_SECRET_KEY"))
 				_, err := webhookVerifier.Verify(e.Request)
 				if err != nil {
 					return HandleWebhookError(WebhookErrorContext{
@@ -69,7 +69,7 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 			}
 
 			// Validate the webhook payload
-			if err := validateDrawEntryTransactionCompletedPayload(requestBody); err != nil {
+			if err := validateTransactionCompletedPayload(requestBody); err != nil {
 				return HandleWebhookError(WebhookErrorContext{
 					App:              app,
 					Event:            e,
@@ -81,15 +81,9 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 				})
 			}
 
-			if requestBody.Data.SubscriptionID != "" {
-				return e.JSON(http.StatusOK, map[string]any{
-					"message": "No action taken, subscription activation will be handled by the subscription.activated webhook.",
-				})
-			}
-
 			// Get the user who made the purchase
 			userId := requestBody.Data.CustomData.UserID
-			_, err = app.FindRecordById("user", userId)
+			user, err := app.FindRecordById("user", userId)
 			if err != nil {
 				return HandleWebhookError(WebhookErrorContext{
 					App:              app,
@@ -99,6 +93,27 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 					Message:          fmt.Sprintf("User with ID '%s' not found", userId),
 					RequestBodyBytes: bodyBytes,
 					Error:            err,
+				})
+			}
+
+			// Set the paddle_customer_id for the user
+			user.Set("paddle_customer_id", requestBody.Data.CustomerID)
+			if err := app.Save(user); err != nil {
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       http.StatusInternalServerError,
+					Route:            route,
+					Message:          fmt.Sprintf("Failed to set paddle_customer_id for user with ID '%s'", userId),
+					RequestBodyBytes: bodyBytes,
+					Error:            err,
+				})
+			}
+
+			// If this is a subscription transaction, stop here
+			if requestBody.Data.SubscriptionID != nil {
+				return e.JSON(http.StatusOK, map[string]any{
+					"message": "No action taken, subscription activation will be handled by the subscription.activated webhook.",
 				})
 			}
 
@@ -262,7 +277,7 @@ func RegisterDrawEntryTransactionCompletedHook(app core.App) {
 	})
 }
 
-func validateDrawEntryTransactionCompletedPayload(payload PaddleDrawEntryTransaction) error {
+func validateTransactionCompletedPayload(payload PaddleDrawEntryTransaction) error {
 	if payload.EventID == "" {
 		return fmt.Errorf("missing event_id")
 	}
@@ -302,6 +317,10 @@ func validateDrawEntryTransactionCompletedPayload(payload PaddleDrawEntryTransac
 
 		if item.Price.ProductID == productIDs["Both"] && (payload.Data.CustomData.MensDrawID == nil || payload.Data.CustomData.WomensDrawID == nil) {
 			return fmt.Errorf("men's and women's joint entry must also have mens_draw_id and womens_draw_id in custom_data")
+		}
+
+		if item.Price.ProductID == productIDs["Subscription"] && payload.Data.SubscriptionID == nil {
+			return fmt.Errorf("subscription product must have subscription ID")
 		}
 	}
 

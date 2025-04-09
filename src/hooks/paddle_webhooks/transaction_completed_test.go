@@ -14,7 +14,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
+func TestTransactionCompletedWebhook(t *testing.T) {
 	// Load all mock data files for testing
 	mockDataFiles := map[string]string{
 		"Men":          filepath.Join("testdata", "mens_draw_entry.json"),
@@ -45,6 +45,9 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 	mensDrawId := *webhookData["Men"].Data.CustomData.MensDrawID
 	womensDrawId := *webhookData["Women"].Data.CustomData.WomensDrawID
 
+	// Extract expected customer ID for verification
+	expectedCustomerId := webhookData["Men"].Data.CustomerID
+
 	// Test apps
 	setupTestAppWithExistingEntry := func(t testing.TB) *tests.TestApp {
 		testApp, err := tests.NewTestApp(testDataDir)
@@ -52,7 +55,7 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		RegisterDrawEntryTransactionCompletedHook(testApp)
+		RegisterTransactionCompletedHook(testApp)
 
 		userDrawEntry, err := testApp.FindCollectionByNameOrId("user_draw_entry")
 		if err != nil {
@@ -76,7 +79,7 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		RegisterDrawEntryTransactionCompletedHook(testApp)
+		RegisterTransactionCompletedHook(testApp)
 
 		return testApp
 	}
@@ -168,11 +171,21 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 		assert.Equal(t, 1, len(womensEntries), "women's user_draw_entry record should exist after adding both draws")
 	}
 
+	checkCustomerIdSet := func(t testing.TB, app *tests.TestApp, res *http.Response) {
+		user, err := app.FindRecordById("user", userId)
+		if err != nil {
+			t.Fatalf("Failed to find user record: %v", err)
+		}
+
+		paddleCustomerId := user.GetString("paddle_customer_id")
+		assert.Equal(t, expectedCustomerId, paddleCustomerId, "paddle_customer_id should be set on user")
+	}
+
 	scenarios := []tests.ApiScenario{
 		{
 			Name:           "Successfully process men's transaction completed webhook",
 			Method:         http.MethodPost,
-			URL:            "/webhook/draw-entry-transaction-completed",
+			URL:            "/webhook/transaction-completed",
 			Body:           strings.NewReader(mockDataStr["Men"]),
 			ExpectedStatus: 200,
 			ExpectedContent: []string{
@@ -180,12 +193,15 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 			},
 			TestAppFactory: setupTestApp,
 			BeforeTestFunc: checkBeforeNonExistent,
-			AfterTestFunc:  checkMensEntryExists,
+			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
+				checkMensEntryExists(t, app, res)
+				checkCustomerIdSet(t, app, res)
+			},
 		},
 		{
 			Name:           "Successfully process women's transaction completed webhook",
 			Method:         http.MethodPost,
-			URL:            "/webhook/draw-entry-transaction-completed",
+			URL:            "/webhook/transaction-completed",
 			Body:           strings.NewReader(mockDataStr["Women"]),
 			ExpectedStatus: 200,
 			ExpectedContent: []string{
@@ -193,12 +209,15 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 			},
 			TestAppFactory: setupTestApp,
 			BeforeTestFunc: checkBeforeNonExistent,
-			AfterTestFunc:  checkWomensEntryExists,
+			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
+				checkWomensEntryExists(t, app, res)
+				checkCustomerIdSet(t, app, res)
+			},
 		},
 		{
 			Name:           "Successfully process both draws transaction completed webhook",
 			Method:         http.MethodPost,
-			URL:            "/webhook/draw-entry-transaction-completed",
+			URL:            "/webhook/transaction-completed",
 			Body:           strings.NewReader(mockDataStr["Both"]),
 			ExpectedStatus: 200,
 			ExpectedContent: []string{
@@ -206,12 +225,15 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 			},
 			TestAppFactory: setupTestApp,
 			BeforeTestFunc: checkBeforeNonExistent,
-			AfterTestFunc:  checkBothEntriesExist,
+			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
+				checkBothEntriesExist(t, app, res)
+				checkCustomerIdSet(t, app, res)
+			},
 		},
 		{
 			Name:           "Idempotent request (sending the same webhook twice)",
 			Method:         http.MethodPost,
-			URL:            "/webhook/draw-entry-transaction-completed",
+			URL:            "/webhook/transaction-completed",
 			Body:           strings.NewReader(mockDataStr["Men"]),
 			ExpectedStatus: 200,
 			ExpectedContent: []string{
@@ -219,12 +241,15 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 			},
 			TestAppFactory: setupTestAppWithExistingEntry,
 			BeforeTestFunc: checkBeforeExists,
-			AfterTestFunc:  checkMensEntryExists,
+			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
+				checkMensEntryExists(t, app, res)
+				checkCustomerIdSet(t, app, res)
+			},
 		},
 		{
 			Name:           "Transaction completed for subscription should succeed without creating draw entry",
 			Method:         http.MethodPost,
-			URL:            "/webhook/draw-entry-transaction-completed",
+			URL:            "/webhook/transaction-completed",
 			Body:           strings.NewReader(mockDataStr["Subscription"]),
 			ExpectedStatus: 200,
 			ExpectedContent: []string{
@@ -232,7 +257,10 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 			},
 			TestAppFactory: setupTestApp,
 			BeforeTestFunc: checkBeforeNonExistent,
-			AfterTestFunc:  checkMensEntryDoesNotExist,
+			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
+				checkMensEntryDoesNotExist(t, app, res)
+				checkCustomerIdSet(t, app, res)
+			},
 		},
 	}
 
@@ -241,15 +269,15 @@ func TestDrawEntryTransactionCompletedWebhook(t *testing.T) {
 	}
 }
 
-// TestDrawEntryTransactionCompletedValidation tests various error conditions of the webhook
-func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
+// TestTransactionCompletedValidation tests various error conditions of the webhook
+func TestTransactionCompletedValidation(t *testing.T) {
 	setupTestApp := func(t testing.TB) *tests.TestApp {
 		testApp, err := tests.NewTestApp(testDataDir)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		RegisterDrawEntryTransactionCompletedHook(testApp)
+		RegisterTransactionCompletedHook(testApp)
 
 		return testApp
 	}
@@ -346,6 +374,14 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 			},
 			expectedMsg: "no valid products found",
 		},
+		{
+			name: "Missing subscription ID for subscription product",
+			modifyFunc: func(p *PaddleDrawEntryTransaction) {
+				p.Data.Items[0].Price.ProductID = productIDs["Subscription"]
+				p.Data.SubscriptionID = nil
+			},
+			expectedMsg: "subscription product must have subscription ID",
+		},
 	}
 
 	// Create API scenarios for each test case
@@ -364,7 +400,7 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 		scenario := tests.ApiScenario{
 			Name:           tc.name,
 			Method:         http.MethodPost,
-			URL:            "/webhook/draw-entry-transaction-completed",
+			URL:            "/webhook/transaction-completed",
 			Body:           strings.NewReader(string(testWebhookStr)),
 			ExpectedStatus: 400,
 			ExpectedContent: []string{
@@ -381,7 +417,7 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 		{
 			Name:           "Bad request - empty body",
 			Method:         http.MethodPost,
-			URL:            "/webhook/draw-entry-transaction-completed",
+			URL:            "/webhook/transaction-completed",
 			Body:           strings.NewReader("{}"),
 			ExpectedStatus: 400,
 			ExpectedContent: []string{
@@ -392,7 +428,7 @@ func TestDrawEntryTransactionCompletedValidation(t *testing.T) {
 		{
 			Name:           "Invalid JSON",
 			Method:         http.MethodPost,
-			URL:            "/webhook/draw-entry-transaction-completed",
+			URL:            "/webhook/transaction-completed",
 			Body:           strings.NewReader("{invalid-json"),
 			ExpectedStatus: 400,
 			ExpectedContent: []string{

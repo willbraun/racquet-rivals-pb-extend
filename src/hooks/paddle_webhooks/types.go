@@ -35,7 +35,7 @@ type TransactionData[T any] struct {
 	InvoiceNumber  string             `json:"invoice_number"`
 	BillingDetails any                `json:"billing_details"`
 	CollectionMode string             `json:"collection_mode"`
-	SubscriptionID string             `json:"subscription_id"`
+	SubscriptionID *string            `json:"subscription_id"`
 }
 
 type DrawEntryCustomData struct {
