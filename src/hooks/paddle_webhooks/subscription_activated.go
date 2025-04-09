@@ -14,14 +14,22 @@ import (
 
 func RegisterSubscriptionActivatedHook(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
-		se.Router.POST("/webhook/subscription-activated", func(e *core.RequestEvent) error {
+		route := "/webhook/subscription-activated"
+		se.Router.POST(route, func(e *core.RequestEvent) error {
 			// Ensure the request is from Paddle
 			verifyWebhook := os.Getenv("SKIP_WEBHOOK_VERIFICATION") != "true"
 			if verifyWebhook {
 				webhookVerifier := paddle.NewWebhookVerifier(os.Getenv("SUBSCRIPTION_ACTIVATED_WEBHOOK_SECRET_KEY"))
 				_, err := webhookVerifier.Verify(e.Request)
 				if err != nil {
-					return e.BadRequestError("Invalid webhook signature", nil)
+					return HandleWebhookError(WebhookErrorContext{
+						App:        app,
+						Event:      e,
+						StatusCode: http.StatusBadRequest,
+						Route:      route,
+						Message:    "Invalid webhook signature",
+						Error:      err,
+					})
 				}
 			}
 
@@ -29,17 +37,41 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 			defer e.Request.Body.Close()
 			bodyBytes, err := io.ReadAll(e.Request.Body)
 			if err != nil {
-				return e.BadRequestError("Failed to read request body", nil)
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       http.StatusBadRequest,
+					Route:            route,
+					Message:          "Failed to read request body",
+					RequestBodyBytes: nil,
+					Error:            err,
+				})
 			}
 
 			var requestBody PaddleSubscriptionActivated
 			if err := json.Unmarshal(bodyBytes, &requestBody); err != nil {
-				return e.BadRequestError("Invalid JSON format", nil)
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       http.StatusBadRequest,
+					Route:            route,
+					Message:          "Invalid JSON format",
+					RequestBodyBytes: bodyBytes,
+					Error:            err,
+				})
 			}
 
 			// Validate the webhook payload
 			if err := validateSubscriptionActivatedPayload(requestBody); err != nil {
-				return e.BadRequestError(fmt.Sprintf("Invalid webhook payload format: %s", err.Error()), nil)
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       http.StatusBadRequest,
+					Route:            route,
+					Message:          fmt.Sprintf("Invalid webhook payload format: %s", err.Error()),
+					RequestBodyBytes: bodyBytes,
+					Error:            err,
+				})
 			}
 
 			// Get the user who activated the subscription
@@ -47,26 +79,41 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 			_, err = app.FindRecordById("user", userId)
 			if err != nil {
 				if err == sql.ErrNoRows {
-					return e.NotFoundError(
-						fmt.Sprintf("User with ID '%s' not found", userId),
-						nil,
-					)
+					return HandleWebhookError(WebhookErrorContext{
+						App:              app,
+						Event:            e,
+						StatusCode:       http.StatusNotFound,
+						Route:            route,
+						Message:          fmt.Sprintf("User with ID '%s' not found", userId),
+						RequestBodyBytes: bodyBytes,
+						Error:            err,
+					})
 				}
 
-				return e.InternalServerError(
-					fmt.Sprintf("Internal error finding user '%s'", userId),
-					err,
-				)
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       http.StatusInternalServerError,
+					Route:            route,
+					Message:          fmt.Sprintf("Internal error finding user '%s'", userId),
+					RequestBodyBytes: bodyBytes,
+					Error:            err,
+				})
 			}
 
 			// If user already has an active subscription, do not create a new one
 			filter := fmt.Sprintf(`user_id="%s"`, userId)
 			existingSubscriptions, err := app.FindRecordsByFilter("subscription", filter, "", 0, 0)
 			if err != nil {
-				return e.InternalServerError(
-					fmt.Sprintf("Internal error checking existing subscriptions for user '%s'", userId),
-					err,
-				)
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       http.StatusInternalServerError,
+					Route:            route,
+					Message:          fmt.Sprintf("Internal error checking existing subscriptions for user '%s'", userId),
+					RequestBodyBytes: bodyBytes,
+					Error:            err,
+				})
 			}
 
 			if len(existingSubscriptions) > 0 {
@@ -82,10 +129,15 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 			// Create new subscription
 			subscription, err := app.FindCollectionByNameOrId("subscription")
 			if err != nil {
-				return e.InternalServerError(
-					"Internal error finding subscription collection",
-					nil,
-				)
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       http.StatusInternalServerError,
+					Route:            route,
+					Message:          "Internal error finding subscription collection",
+					RequestBodyBytes: bodyBytes,
+					Error:            err,
+				})
 			}
 
 			record := core.NewRecord(subscription)
@@ -96,10 +148,15 @@ func RegisterSubscriptionActivatedHook(app core.App) {
 			record.Set("current_billing_period_end", requestBody.Data.CurrentBillingPeriod.EndsAt)
 
 			if err := app.Save(record); err != nil {
-				return e.InternalServerError(
-					fmt.Sprintf("Failed to save new subscription record for user_id '%s' and paddle_subscription_id: '%s'", userId, requestBody.Data.ID),
-					nil,
-				)
+				return HandleWebhookError(WebhookErrorContext{
+					App:              app,
+					Event:            e,
+					StatusCode:       http.StatusInternalServerError,
+					Route:            route,
+					Message:          fmt.Sprintf("Failed to save new subscription record for user_id '%s' and paddle_subscription_id: '%s'", userId, requestBody.Data.ID),
+					RequestBodyBytes: bodyBytes,
+					Error:            err,
+				})
 			}
 
 			return e.JSON(http.StatusOK, map[string]any{

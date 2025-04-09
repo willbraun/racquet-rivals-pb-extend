@@ -2,6 +2,7 @@ package paddle_webhooks
 
 import (
 	"fmt"
+	"net/http"
 	"net/mail"
 	"time"
 
@@ -23,15 +24,15 @@ type WebhookErrorContext struct {
 func HandleWebhookError(ctx WebhookErrorContext) *router.ApiError {
 	NotifySelfWebhookFailure(ctx)
 	switch ctx.StatusCode {
-	case 400:
+	case http.StatusBadRequest:
 		return ctx.Event.BadRequestError(ctx.Message, nil)
-	case 401:
+	case http.StatusUnauthorized:
 		return ctx.Event.UnauthorizedError(ctx.Message, nil)
-	case 403:
+	case http.StatusForbidden:
 		return ctx.Event.ForbiddenError(ctx.Message, nil)
-	case 404:
+	case http.StatusNotFound:
 		return ctx.Event.NotFoundError(ctx.Message, nil)
-	case 429:
+	case http.StatusTooManyRequests:
 		return ctx.Event.TooManyRequestsError(ctx.Message, nil)
 	}
 
@@ -54,10 +55,13 @@ func NotifySelfWebhookFailure(ctx WebhookErrorContext) {
 					body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; }
 					.container { padding: 20px; border: 1px solid #ddd; border-radius: 5px; }
 					.header { background-color: #f44336; color: white; padding: 10px 20px; border-radius: 5px 5px 0 0; }
-					.content { padding: 20px; background-color: #f9f9f9; font-size: 18px; }
-					.message { margin-bottom: 20px; padding: 15px; background-color: white; border-left: 4px solid #f44336; }
-					.request { background-color: #f8f8f8; padding: 10px; border-radius: 4px; overflow-x: auto; font-size: 14px; color: #333; }
-					.details { background-color: #ebebeb; padding: 15px; font-family: monospace; overflow-wrap: break-word; }
+					.content { padding: 20px; background-color: #f9f9f9; font-size: 16px; }
+					.section { margin-bottom: 20px; padding: 15px; background-color: white; border-radius: 4px; }
+					.error { border-left: 4px solid #f44336; }
+					.route { border-left: 4px solid #2196F3; }
+					.request { border-left: 4px solid #4CAF50; }
+					.details { border-left: 4px solid #FF9800; font-family: monospace; overflow-wrap: break-word; }
+					pre { margin: 0; overflow-x: auto; white-space: pre-wrap; }
 					.footer { font-size: 12px; text-align: center; margin-top: 20px; color: #777; }
 				</style>
 			</head>
@@ -68,15 +72,19 @@ func NotifySelfWebhookFailure(ctx WebhookErrorContext) {
 					</div>
 					<div class="content">
 						<p>An error has occurred that requires attention:</p>
-						<div class="message">
+						<div class="section error">
 							<strong>Error Message:</strong>
 							<p>%s</p>
 						</div>
-						<div class="request">
+						<div class="section route">
+							<strong>Webhook Route:</strong>
+							<p>%s</p>
+						</div>
+						<div class="section request">
 							<strong>Request Body:</strong>
 							<pre>%s</pre>
 						</div>
-						<div class="details">
+						<div class="section details">
 							<strong>Technical Details:</strong>
 							<p>%s</p>
 						</div>
@@ -88,7 +96,7 @@ func NotifySelfWebhookFailure(ctx WebhookErrorContext) {
 				</div>
 			</body>
 			</html>
-			`, ctx.Message, string(ctx.RequestBodyBytes), ctx.Error.Error(), time.Now().Format("Jan 02, 2006 15:04:05 MST")),
+			`, ctx.Message, ctx.Route, string(ctx.RequestBodyBytes), ctx.Error.Error(), time.Now().Format("Jan 02, 2006 15:04:05 MST")),
 	}
 
 	ctx.App.NewMailClient().Send(message)
