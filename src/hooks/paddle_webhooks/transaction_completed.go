@@ -13,13 +13,24 @@ import (
 )
 
 var productIDs = map[string]string{
-	"Men":          "pro_01jpkgny45pjrxh3nnb7nck2zv",
-	"Women":        "pro_01jpkhe7h0se4fcr3bpf3cha1x",
-	"Both":         "pro_01jpkhhgn8qzpg0ry0yvgyqw8d",
-	"Subscription": "pro_01jpkhsd61k1acva107vz6dj0v",
+	"Men":          "",
+	"Women":        "",
+	"Both":         "",
+	"Subscription": "",
+}
+
+// Initialize product IDs from environment at startup
+func InitProductIDs() {
+	productIDs["Men"] = os.Getenv("MENS_PRODUCT_ID")
+	productIDs["Women"] = os.Getenv("WOMENS_PRODUCT_ID")
+	productIDs["Both"] = os.Getenv("BOTH_PRODUCT_ID")
+	productIDs["Subscription"] = os.Getenv("SUBSCRIPTION_PRODUCT_ID")
 }
 
 func RegisterTransactionCompletedHook(app core.App) {
+	// Initialize product IDs when the hook is registered
+	InitProductIDs()
+
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		route := "/webhook/transaction-completed"
 		se.Router.POST(route, func(e *core.RequestEvent) error {
