@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"os"
 
@@ -12,25 +13,30 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
-var productIDs = map[string]string{
-	"Men":          "",
-	"Women":        "",
-	"Both":         "",
-	"Subscription": "",
+var productIDs map[string]string
+
+func loadProductIDs() {
+	productIDs = map[string]string{
+		"Men":          os.Getenv("MENS_PRODUCT_ID"),
+		"Women":        os.Getenv("WOMENS_PRODUCT_ID"),
+		"Both":         os.Getenv("BOTH_PRODUCT_ID"),
+		"Subscription": os.Getenv("SUBSCRIPTION_PRODUCT_ID"),
+	}
 }
 
-// Initialize product IDs from environment at startup
-func InitProductIDs() {
-	productIDs["Men"] = os.Getenv("MENS_PRODUCT_ID")
-	productIDs["Women"] = os.Getenv("WOMENS_PRODUCT_ID")
-	productIDs["Both"] = os.Getenv("BOTH_PRODUCT_ID")
-	productIDs["Subscription"] = os.Getenv("SUBSCRIPTION_PRODUCT_ID")
+func init() {
+	loadProductIDs()
+}
+
+func getProductID(productType string) string {
+	id, ok := productIDs[productType]
+	if !ok {
+		log.Panicf("unknown product type %q", productType)
+	}
+	return id
 }
 
 func RegisterTransactionCompletedHook(app core.App) {
-	// Initialize product IDs when the hook is registered
-	InitProductIDs()
-
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
 		route := "/webhook/transaction-completed"
 		se.Router.POST(route, func(e *core.RequestEvent) error {
@@ -148,11 +154,11 @@ func RegisterTransactionCompletedHook(app core.App) {
 		items:
 			for _, item := range transactionItems {
 				switch item.Price.ProductID {
-				case productIDs["Men"]:
+				case getProductID("Men"):
 					drawTypes = append(drawTypes, "Men")
-				case productIDs["Women"]:
+				case getProductID("Women"):
 					drawTypes = append(drawTypes, "Women")
-				case productIDs["Both"]:
+				case getProductID("Both"):
 					// "Both" product overrides individual products
 					drawTypes = []string{"Men", "Women"}
 					break items
@@ -307,10 +313,10 @@ func validateTransactionCompletedPayload(payload PaddleDrawEntryTransaction) err
 
 	validProductFound := false
 	validProductIDs := map[string]bool{
-		productIDs["Men"]:          true,
-		productIDs["Women"]:        true,
-		productIDs["Both"]:         true,
-		productIDs["Subscription"]: true, // Subscription is valid for other webhooks but not for draw entry
+		getProductID("Men"):          true,
+		getProductID("Women"):        true,
+		getProductID("Both"):         true,
+		getProductID("Subscription"): true, // Subscription is valid for other webhooks but not for draw entry
 	}
 
 	for _, item := range payload.Data.Items {
@@ -318,19 +324,19 @@ func validateTransactionCompletedPayload(payload PaddleDrawEntryTransaction) err
 			validProductFound = true
 		}
 
-		if item.Price.ProductID == productIDs["Men"] && payload.Data.CustomData.MensDrawID == nil {
+		if item.Price.ProductID == getProductID("Men") && payload.Data.CustomData.MensDrawID == nil {
 			return fmt.Errorf("men's draw entry must also have mens_draw_id in custom_data")
 		}
 
-		if item.Price.ProductID == productIDs["Women"] && payload.Data.CustomData.WomensDrawID == nil {
+		if item.Price.ProductID == getProductID("Women") && payload.Data.CustomData.WomensDrawID == nil {
 			return fmt.Errorf("women's draw entry must also have womens_draw_id in custom_data")
 		}
 
-		if item.Price.ProductID == productIDs["Both"] && (payload.Data.CustomData.MensDrawID == nil || payload.Data.CustomData.WomensDrawID == nil) {
+		if item.Price.ProductID == getProductID("Both") && (payload.Data.CustomData.MensDrawID == nil || payload.Data.CustomData.WomensDrawID == nil) {
 			return fmt.Errorf("men's and women's joint entry must also have mens_draw_id and womens_draw_id in custom_data")
 		}
 
-		if item.Price.ProductID == productIDs["Subscription"] && payload.Data.SubscriptionID == nil {
+		if item.Price.ProductID == getProductID("Subscription") && payload.Data.SubscriptionID == nil {
 			return fmt.Errorf("subscription product must have subscription ID")
 		}
 	}

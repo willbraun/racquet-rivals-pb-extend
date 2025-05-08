@@ -16,6 +16,8 @@ func TestMain(m *testing.M) {
 		log.Println("Warning: Error loading .env file:", err)
 	}
 
+	loadProductIDs()
+
 	exitCode := m.Run()
 	os.Exit(exitCode)
 }
