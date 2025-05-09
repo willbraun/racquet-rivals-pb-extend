@@ -306,7 +306,7 @@ func TestTransactionCompletedValidation(t *testing.T) {
 		{
 			name: "Missing men's draw ID for men's product",
 			modifyFunc: func(p *PaddleDrawEntryTransaction) {
-				p.Data.Items[0].Price.ProductID = getProductID("Men")
+				p.Data.Items[0].Price.ProductID = productIDs["Men"]
 				p.Data.CustomData.MensDrawID = nil
 				p.Data.CustomData.WomensDrawID = nil
 			},
@@ -315,7 +315,7 @@ func TestTransactionCompletedValidation(t *testing.T) {
 		{
 			name: "Missing women's draw ID for women's product",
 			modifyFunc: func(p *PaddleDrawEntryTransaction) {
-				p.Data.Items[0].Price.ProductID = getProductID("Women")
+				p.Data.Items[0].Price.ProductID = productIDs["Women"]
 				p.Data.CustomData.MensDrawID = nil
 				p.Data.CustomData.WomensDrawID = nil
 			},
@@ -324,7 +324,7 @@ func TestTransactionCompletedValidation(t *testing.T) {
 		{
 			name: "Missing mens_draw_id for both draws product",
 			modifyFunc: func(p *PaddleDrawEntryTransaction) {
-				p.Data.Items[0].Price.ProductID = getProductID("Both")
+				p.Data.Items[0].Price.ProductID = productIDs["Both"]
 				p.Data.CustomData.MensDrawID = nil
 				p.Data.CustomData.WomensDrawID = &womensDrawID
 			},
@@ -333,7 +333,7 @@ func TestTransactionCompletedValidation(t *testing.T) {
 		{
 			name: "Missing womens_draw_id for both draws product",
 			modifyFunc: func(p *PaddleDrawEntryTransaction) {
-				p.Data.Items[0].Price.ProductID = getProductID("Both")
+				p.Data.Items[0].Price.ProductID = productIDs["Both"]
 				p.Data.CustomData.MensDrawID = &mensDrawID
 				p.Data.CustomData.WomensDrawID = nil
 			},
@@ -377,7 +377,7 @@ func TestTransactionCompletedValidation(t *testing.T) {
 		{
 			name: "Missing subscription ID for subscription product",
 			modifyFunc: func(p *PaddleDrawEntryTransaction) {
-				p.Data.Items[0].Price.ProductID = getProductID("Subscription")
+				p.Data.Items[0].Price.ProductID = os.Getenv("SUBSCRIPTION_PRODUCT_ID")
 				p.Data.SubscriptionID = nil
 			},
 			expectedMsg: "subscription product must have subscription ID",

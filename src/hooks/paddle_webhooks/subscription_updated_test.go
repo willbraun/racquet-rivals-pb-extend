@@ -216,7 +216,7 @@ func TestSubscriptionUpdatedValidation(t *testing.T) {
 			modifyFunc: func(p *PaddleSubscriptionUpdated) {
 				p.Data.Items[0].Product.ID = "invalid_product_id"
 			},
-			expectedMsg: "invalid product ID. Expected pro_01jpkhsd61k1acva107vz6dj0v, got invalid_product_id",
+			expectedMsg: fmt.Sprintf("invalid product ID. Expected %s, got invalid_product_id", os.Getenv("SUBSCRIPTION_PRODUCT_ID")),
 		},
 	}
 

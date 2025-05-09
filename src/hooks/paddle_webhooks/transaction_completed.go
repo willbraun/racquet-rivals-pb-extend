@@ -5,36 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"log"
 	"net/http"
 	"os"
 
 	paddle "github.com/PaddleHQ/paddle-go-sdk/v3"
 	"github.com/pocketbase/pocketbase/core"
 )
-
-var productIDs map[string]string
-
-func loadProductIDs() {
-	productIDs = map[string]string{
-		"Men":          os.Getenv("MENS_PRODUCT_ID"),
-		"Women":        os.Getenv("WOMENS_PRODUCT_ID"),
-		"Both":         os.Getenv("BOTH_PRODUCT_ID"),
-		"Subscription": os.Getenv("SUBSCRIPTION_PRODUCT_ID"),
-	}
-}
-
-func init() {
-	loadProductIDs()
-}
-
-func getProductID(productType string) string {
-	id, ok := productIDs[productType]
-	if !ok {
-		log.Panicf("unknown product type %q", productType)
-	}
-	return id
-}
 
 func RegisterTransactionCompletedHook(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
