@@ -10,6 +10,8 @@ import (
 	"github.com/pocketbase/pocketbase/core"
 )
 
+// DEPRECATED: No longer used by the frontend to check if a user has access to a draw since making this a free service.
+
 // Check if a given user has access to participate in a given draw
 func RegisterAccessHook(app core.App) {
 	app.OnServe().BindFunc(func(se *core.ServeEvent) error {
