@@ -73,7 +73,7 @@ func RegisterPredictionCloseHook(app core.App) {
 					Name:    app.Settings().Meta.SenderName,
 				},
 				To:      []mail.Address{{Address: user.GetString("email")}},
-				Subject: "Time to make your picks!",
+				Subject: fmt.Sprintf("Time to make your picks! (%s)", title),
 				HTML:    fmt.Sprintf(`The Round of 16 is ready to go for: <b>%s</b>. You have 12 hours to make your picks for ALL of the remaining matches, good luck!<br><br><a href="https://racquetrivals.com/draw/%s">Racquet Rivals - %s</a>`, title, slug, title),
 			}
 
