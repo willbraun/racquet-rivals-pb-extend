@@ -9,3 +9,9 @@ For more information on Racquet Rivals, see this [repo](https://github.com/willb
 # Technologies Used
 
 Go, Pocketbase
+
+# To Run
+
+```go
+go run ./src serve
+```
