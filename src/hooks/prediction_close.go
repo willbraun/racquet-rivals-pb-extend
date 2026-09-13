@@ -5,6 +5,7 @@ import (
 	"log"
 	"math"
 	"net/mail"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -61,7 +62,17 @@ func RegisterPredictionCloseHook(app core.App) {
 		title := fmt.Sprintf("%s %s %d", name, event, year)
 		slug := strings.ToLower(strings.ReplaceAll(strings.Join([]string{name, event, strconv.Itoa(year)}, "-"), " ", "-")) + "-" + drawId
 
-		users, err := app.FindRecordsByFilter("user", `email!=""`, "", -1, 0)
+		// Outside of production, only email TEST_EMAIL (if set) instead of all users
+		var userFilter string
+		if strings.Contains(os.Getenv("BASE_URL"), "racquetrivals.com") {
+			userFilter = `email!=""`
+		} else if testEmail := os.Getenv("TEST_EMAIL"); testEmail != "" {
+			userFilter = fmt.Sprintf(`email="%s"`, testEmail)
+		} else {
+			return e.Next()
+		}
+
+		users, err := app.FindRecordsByFilter("user", userFilter, "", -1, 0)
 		if err != nil {
 			return err
 		}

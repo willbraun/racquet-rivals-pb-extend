@@ -239,3 +239,125 @@ func TestPredictionCloseUpdate(t *testing.T) {
 		scenario.Test(t)
 	}
 }
+
+// Verifies emails go to everyone in production but only to TEST_EMAIL otherwise
+func TestPredictionCloseEmailNotification(t *testing.T) {
+	assert := assert.New(t)
+
+	const r16Slot15Id = "4pbsipqoncnd14h"
+	const r16Slot16Id = "7wg2gmjqutu1bky"
+
+	recordToken, err := generateRecordToken("user", "script_user")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	requestHeaders := map[string]string{
+		"Authorization": recordToken,
+	}
+
+	testAppFactory := func(t testing.TB) *tests.TestApp {
+		testApp, err := tests.NewTestApp(testDataDir)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		RegisterAllHooks(testApp)
+
+		slot15, err := testApp.FindRecordById("draw_slot", r16Slot15Id)
+		if err != nil {
+			log.Println("Error accessing slot 15", err)
+		}
+
+		slot15.Set("name", "Mertens")
+		if err := testApp.Save(slot15); err != nil {
+			log.Println("Error saving slot 15", err)
+		}
+
+		return testApp
+	}
+
+	patchBody := func() CreateUpdateSlotReq {
+		return CreateUpdateSlotReq{
+			DrawID:   drawId,
+			Round:    3,
+			Position: 16,
+			Name:     "Rybakina",
+			Seed:     "(2)",
+		}
+	}
+
+	var testUserEmail string
+	var expectedProdSendCount int
+
+	scenarios := []tests.ApiScenario{
+		{
+			Name:            "Non-production without TEST_EMAIL, no email sent",
+			Method:          http.MethodPatch,
+			URL:             fmt.Sprintf("/api/collections/draw_slot/records/%s", r16Slot16Id),
+			Body:            getIoReaderBody(patchBody()),
+			Headers:         requestHeaders,
+			ExpectedStatus:  200,
+			ExpectedContent: []string{"\"collectionName\":\"draw_slot\""},
+			TestAppFactory:  testAppFactory,
+			BeforeTestFunc: func(t testing.TB, app *tests.TestApp, e *core.ServeEvent) {
+				t.Setenv("BASE_URL", "http://localhost:3000")
+				t.Setenv("TEST_EMAIL", "")
+			},
+			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
+				assert.Equal(0, app.TestMailer.TotalSend())
+			},
+		},
+		{
+			Name:            "Non-production with TEST_EMAIL, sends only to TEST_EMAIL",
+			Method:          http.MethodPatch,
+			URL:             fmt.Sprintf("/api/collections/draw_slot/records/%s", r16Slot16Id),
+			Body:            getIoReaderBody(patchBody()),
+			Headers:         requestHeaders,
+			ExpectedStatus:  200,
+			ExpectedContent: []string{"\"collectionName\":\"draw_slot\""},
+			TestAppFactory:  testAppFactory,
+			BeforeTestFunc: func(t testing.TB, app *tests.TestApp, e *core.ServeEvent) {
+				users, err := app.FindRecordsByFilter("user", `email!=""`, "", 1, 0)
+				if err != nil || len(users) == 0 {
+					t.Fatal("Error finding a test user with an email", err)
+				}
+				testUserEmail = users[0].GetString("email")
+
+				t.Setenv("BASE_URL", "http://localhost:3000")
+				t.Setenv("TEST_EMAIL", testUserEmail)
+			},
+			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
+				assert.Equal(1, app.TestMailer.TotalSend())
+				assert.Equal(testUserEmail, app.TestMailer.LastMessage().To[0].Address)
+			},
+		},
+		{
+			Name:            "Production, sends to all users with an email",
+			Method:          http.MethodPatch,
+			URL:             fmt.Sprintf("/api/collections/draw_slot/records/%s", r16Slot16Id),
+			Body:            getIoReaderBody(patchBody()),
+			Headers:         requestHeaders,
+			ExpectedStatus:  200,
+			ExpectedContent: []string{"\"collectionName\":\"draw_slot\""},
+			TestAppFactory:  testAppFactory,
+			BeforeTestFunc: func(t testing.TB, app *tests.TestApp, e *core.ServeEvent) {
+				users, err := app.FindRecordsByFilter("user", `email!=""`, "", -1, 0)
+				if err != nil {
+					t.Fatal("Error counting test users with an email", err)
+				}
+				expectedProdSendCount = len(users)
+
+				t.Setenv("BASE_URL", "https://racquetrivals.com")
+			},
+			AfterTestFunc: func(t testing.TB, app *tests.TestApp, res *http.Response) {
+				assert.Equal(expectedProdSendCount, app.TestMailer.TotalSend())
+				assert.Contains(app.TestMailer.LastMessage().Subject, "Time to make your picks!")
+			},
+		},
+	}
+
+	for _, scenario := range scenarios {
+		scenario.Test(t)
+	}
+}
